@@ -1,0 +1,688 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		370F2B1A2F34028000469292 /* EnvSandbox.plist in Resources */ = {isa = PBXBuildFile; fileRef = 370F2B192F34028000469292 /* EnvSandbox.plist */; };
+		370F2B1C2F34037500469292 /* EnvProd.plist in Resources */ = {isa = PBXBuildFile; fileRef = 370F2B1B2F34037500469292 /* EnvProd.plist */; };
+		370F2C012F3D310800469292 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 370F2C002F3D310800469292 /* FirebaseAnalytics */; };
+		370F2C862F45006800469292 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 370F2C852F45006800469292 /* FirebaseAppCheck */; };
+		37E5B7F92F32F6B7001DAF0D /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 37E5B7F82F32F6B7001DAF0D /* RevenueCat */; };
+		37E6D24D2F228FEB00F83552 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 37E6D24C2F228FEB00F83552 /* FirebaseCore */; };
+		37E6D24F2F228FEB00F83552 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 37E6D24E2F228FEB00F83552 /* FirebaseStorage */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		37AEA3092F212829000071D4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 37AEA2F32F212827000071D4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 37AEA2FA2F212827000071D4;
+			remoteInfo = PantryPal;
+		};
+		37AEA3132F212829000071D4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 37AEA2F32F212827000071D4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 37AEA2FA2F212827000071D4;
+			remoteInfo = PantryPal;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		370F2B192F34028000469292 /* EnvSandbox.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = EnvSandbox.plist; sourceTree = "<group>"; };
+		370F2B1B2F34037500469292 /* EnvProd.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = EnvProd.plist; sourceTree = "<group>"; };
+		37AEA2FB2F212828000071D4 /* PantryPal Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PantryPal Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		37AEA3082F212829000071D4 /* PantryPalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PantryPalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		37AEA3122F212829000071D4 /* PantryPalUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PantryPalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		37AEA2FD2F212828000071D4 /* PantryPal */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PantryPal;
+			sourceTree = "<group>";
+		};
+		37AEA30B2F212829000071D4 /* PantryPalTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PantryPalTests;
+			sourceTree = "<group>";
+		};
+		37AEA3152F212829000071D4 /* PantryPalUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PantryPalUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		37AEA2F82F212827000071D4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37E6D24D2F228FEB00F83552 /* FirebaseCore in Frameworks */,
+				37E6D24F2F228FEB00F83552 /* FirebaseStorage in Frameworks */,
+				370F2C012F3D310800469292 /* FirebaseAnalytics in Frameworks */,
+				370F2C862F45006800469292 /* FirebaseAppCheck in Frameworks */,
+				37E5B7F92F32F6B7001DAF0D /* RevenueCat in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA3052F212829000071D4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA30F2F212829000071D4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		370F2BFF2F3D310800469292 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		37AEA2F22F212827000071D4 = {
+			isa = PBXGroup;
+			children = (
+				370F2B1B2F34037500469292 /* EnvProd.plist */,
+				370F2B192F34028000469292 /* EnvSandbox.plist */,
+				37AEA2FD2F212828000071D4 /* PantryPal */,
+				37AEA30B2F212829000071D4 /* PantryPalTests */,
+				37AEA3152F212829000071D4 /* PantryPalUITests */,
+				370F2BFF2F3D310800469292 /* Frameworks */,
+				37AEA2FC2F212828000071D4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		37AEA2FC2F212828000071D4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				37AEA2FB2F212828000071D4 /* PantryPal Dev.app */,
+				37AEA3082F212829000071D4 /* PantryPalTests.xctest */,
+				37AEA3122F212829000071D4 /* PantryPalUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		37AEA2FA2F212827000071D4 /* PantryPal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 37AEA31C2F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPal" */;
+			buildPhases = (
+				37AEA2F72F212827000071D4 /* Sources */,
+				37AEA2F82F212827000071D4 /* Frameworks */,
+				37AEA2F92F212827000071D4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				37AEA2FD2F212828000071D4 /* PantryPal */,
+			);
+			name = PantryPal;
+			packageProductDependencies = (
+				37E6D24C2F228FEB00F83552 /* FirebaseCore */,
+				37E6D24E2F228FEB00F83552 /* FirebaseStorage */,
+				37E5B7F82F32F6B7001DAF0D /* RevenueCat */,
+				370F2C002F3D310800469292 /* FirebaseAnalytics */,
+				370F2C852F45006800469292 /* FirebaseAppCheck */,
+			);
+			productName = PantryPal;
+			productReference = 37AEA2FB2F212828000071D4 /* PantryPal Dev.app */;
+			productType = "com.apple.product-type.application";
+		};
+		37AEA3072F212829000071D4 /* PantryPalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 37AEA31F2F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPalTests" */;
+			buildPhases = (
+				37AEA3042F212829000071D4 /* Sources */,
+				37AEA3052F212829000071D4 /* Frameworks */,
+				37AEA3062F212829000071D4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				37AEA30A2F212829000071D4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				37AEA30B2F212829000071D4 /* PantryPalTests */,
+			);
+			name = PantryPalTests;
+			packageProductDependencies = (
+			);
+			productName = PantryPalTests;
+			productReference = 37AEA3082F212829000071D4 /* PantryPalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		37AEA3112F212829000071D4 /* PantryPalUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 37AEA3222F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPalUITests" */;
+			buildPhases = (
+				37AEA30E2F212829000071D4 /* Sources */,
+				37AEA30F2F212829000071D4 /* Frameworks */,
+				37AEA3102F212829000071D4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				37AEA3142F212829000071D4 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				37AEA3152F212829000071D4 /* PantryPalUITests */,
+			);
+			name = PantryPalUITests;
+			packageProductDependencies = (
+			);
+			productName = PantryPalUITests;
+			productReference = 37AEA3122F212829000071D4 /* PantryPalUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		37AEA2F32F212827000071D4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					37AEA2FA2F212827000071D4 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					37AEA3072F212829000071D4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 37AEA2FA2F212827000071D4;
+					};
+					37AEA3112F212829000071D4 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 37AEA2FA2F212827000071D4;
+					};
+				};
+			};
+			buildConfigurationList = 37AEA2F62F212827000071D4 /* Build configuration list for PBXProject "PantryPal" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 37AEA2F22F212827000071D4;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				37E5B7F72F32F6B7001DAF0D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 37AEA2FC2F212828000071D4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				37AEA2FA2F212827000071D4 /* PantryPal */,
+				37AEA3072F212829000071D4 /* PantryPalTests */,
+				37AEA3112F212829000071D4 /* PantryPalUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		37AEA2F92F212827000071D4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				370F2B1A2F34028000469292 /* EnvSandbox.plist in Resources */,
+				370F2B1C2F34037500469292 /* EnvProd.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA3062F212829000071D4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA3102F212829000071D4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		37AEA2F72F212827000071D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA3042F212829000071D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37AEA30E2F212829000071D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		37AEA30A2F212829000071D4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 37AEA2FA2F212827000071D4 /* PantryPal */;
+			targetProxy = 37AEA3092F212829000071D4 /* PBXContainerItemProxy */;
+		};
+		37AEA3142F212829000071D4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 37AEA2FA2F212827000071D4 /* PantryPal */;
+			targetProxy = 37AEA3132F212829000071D4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		37AEA31A2F212829000071D4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_RECIPE_API_BASE_URL = "$(RECIPE_API_BASE_URL)";
+				INFOPLIST_KEY_RECIPLEASE_API_BASE_URL = "$(RECIPLEASE_API_BASE_URL)";
+				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		37AEA31B2F212829000071D4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_RECIPE_API_BASE_URL = "$(RECIPE_API_BASE_URL)";
+				INFOPLIST_KEY_RECIPLEASE_API_BASE_URL = "$(RECIPLEASE_API_BASE_URL)";
+				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		37AEA31D2F212829000071D4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 38;
+				DEVELOPMENT_TEAM = TBGMH3M2W3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EnvSandbox.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Reciplease Dev";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Reciplease needs full access to Calendar to create your Reciplease meal plan calendar and add planned meals at the right times.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal needs access to your camera to take photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal needs access to your photo library to select photos of your fridge and pantry.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.Reciplease.dev;
+				PRODUCT_NAME = "$(TARGET_NAME) Dev";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		37AEA31E2F212829000071D4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 38;
+				DEVELOPMENT_TEAM = TBGMH3M2W3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EnvProd.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Reciplease;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Reciplease needs full access to Calendar to create your Reciplease meal plan calendar and add planned meals at the right times.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal needs access to your camera to take photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal needs access to your photo library to select photos of your fridge and pantry.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.Reciplease;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		37AEA3202F212829000071D4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.PantryPalTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PantryPal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PantryPal";
+			};
+			name = Debug;
+		};
+		37AEA3212F212829000071D4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.PantryPalTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PantryPal.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PantryPal";
+			};
+			name = Release;
+		};
+		37AEA3232F212829000071D4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.PantryPalUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PantryPal;
+			};
+			name = Debug;
+		};
+		37AEA3242F212829000071D4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.henrychipman.PantryPalUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PantryPal;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		37AEA2F62F212827000071D4 /* Build configuration list for PBXProject "PantryPal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37AEA31A2F212829000071D4 /* Debug */,
+				37AEA31B2F212829000071D4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		37AEA31C2F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37AEA31D2F212829000071D4 /* Debug */,
+				37AEA31E2F212829000071D4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		37AEA31F2F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37AEA3202F212829000071D4 /* Debug */,
+				37AEA3212F212829000071D4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		37AEA3222F212829000071D4 /* Build configuration list for PBXNativeTarget "PantryPalUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37AEA3232F212829000071D4 /* Debug */,
+				37AEA3242F212829000071D4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		37E5B7F72F32F6B7001DAF0D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.57.0;
+			};
+		};
+		37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		370F2C002F3D310800469292 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		370F2C852F45006800469292 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+		37E5B7F82F32F6B7001DAF0D /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37E5B7F72F32F6B7001DAF0D /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		37E6D24C2F228FEB00F83552 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		37E6D24E2F228FEB00F83552 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37E6D24B2F228FEB00F83552 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 37AEA2F32F212827000071D4 /* Project object */;
+}
