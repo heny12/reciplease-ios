@@ -6,6 +6,7 @@
 //
 
 import Foundation
+#if canImport(Security)
 import Security
 
 enum KeychainHelper {
@@ -80,3 +81,33 @@ enum KeychainHelper {
         return data
     }
 }
+#else
+enum KeychainHelper {
+    static func set(_ value: String, forKey key: String) -> Bool {
+        _ = value
+        _ = key
+        return false
+    }
+
+    static func string(forKey key: String) -> String? {
+        _ = key
+        return nil
+    }
+
+    static func set(_ value: Date, forKey key: String) -> Bool {
+        _ = value
+        _ = key
+        return false
+    }
+
+    static func date(forKey key: String) -> Date? {
+        _ = key
+        return nil
+    }
+
+    static func remove(forKey key: String) -> Bool {
+        _ = key
+        return false
+    }
+}
+#endif

@@ -7,7 +7,8 @@ import XCTest
 @testable import PantryPal
 
 final class RecipeLogicTests: XCTestCase {
-    func testMixedNumberDoublesToThreeCups() {
+    @MainActor
+    func testMixedNumberDoublesToThreeCups() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             quantity: "1 1/2 cups",
             recipeServings: 2,
@@ -17,7 +18,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertNil(scaled.scaleFactorToShow)
     }
 
-    func testUnicodeVulgarFractionDoubles() {
+    @MainActor
+    func testUnicodeVulgarFractionDoubles() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             quantity: "1½ cups",
             recipeServings: 1,
@@ -26,7 +28,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(scaled.text, "3 cups")
     }
 
-    func testSimpleFractionDoublesToWhole() {
+    @MainActor
+    func testSimpleFractionDoublesToWhole() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             quantity: "1/2 cup",
             recipeServings: 1,
@@ -35,7 +38,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(scaled.text, "1 cup")
     }
 
-    func testRangeScalesBothEnds() {
+    @MainActor
+    func testRangeScalesBothEnds() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             quantity: "1-2 tbsp",
             recipeServings: 2,
@@ -44,7 +48,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(scaled.text, "2-4 tbsp")
     }
 
-    func testStructuredAmountPreferredOverLegacyString() {
+    @MainActor
+    func testStructuredAmountPreferredOverLegacyString() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             amount: 1.5,
             unit: "cups",
@@ -55,7 +60,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(scaled.text, "3 cups")
     }
 
-    func testToTasteIsNotScaled() {
+    @MainActor
+    func testToTasteIsNotScaled() async {
         let scaled = RecipeQuantityScaling.scaledDisplay(
             quantity: "to taste",
             recipeServings: 2,
@@ -64,7 +70,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(scaled.text, "to taste")
     }
 
-    func testLegacyAndV2RecipeJSONDecode() throws {
+    @MainActor
+    func testLegacyAndV2RecipeJSONDecode() async throws {
         let legacy = """
         {"id":"AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE","name":"Soup","description":"Warm","ingredients":[{"name":"noodle","quantity":"1 cup"}],"steps":["Boil"]}
         """.data(using: .utf8)!
@@ -118,7 +125,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(recipe.id, UUID(uuidString: "BBBBBBBB-BBBB-CCCC-DDDD-EEEEEEEEEEEE"))
     }
 
-    func testPitchDeckDecodes() throws {
+    @MainActor
+    func testPitchDeckDecodes() async throws {
         let data = """
         {
           "sessionId": "sess_uuid",
@@ -145,7 +153,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(deck.pitches[0].matchPill(), "Uses 3 pantry items · +1 extra: lime")
     }
 
-    func testUncategorizedMovesIntoEarlierIdeasWithoutDeleting() {
+    @MainActor
+    func testUncategorizedMovesIntoEarlierIdeasWithoutDeleting() async {
         let recipeA = UUID()
         let recipeB = UUID()
         let uncategorized = CookbookSnapshot(
@@ -175,7 +184,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(second.cookbooks.first { $0.isInbox }?.recipeIds, [recipeA, recipeB])
     }
 
-    func testPantryMatchCountsNameOverlapAndStaples() {
+    @MainActor
+    func testPantryMatchCountsNameOverlapAndStaples() async {
         let result = PantryMatchCalculator.breakdown(
             ingredientNames: ["chicken thighs", "lime", "salt"],
             pantryNames: ["chicken", "spinach"]
@@ -187,7 +197,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertFalse(PantryMatchCalculator.isInPantry("lime", pantryNames: ["chicken"]))
     }
 
-    func testLibrarySearchIncludesIngredientNames() {
+    @MainActor
+    func testLibrarySearchIncludesIngredientNames() async {
         let recipe = Recipe(
             name: "Skillet",
             description: "Golden",
@@ -201,7 +212,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertTrue(RecipeLibraryQuery.matches(recipe: recipe, smart: .under30, pantryScore: 0))
     }
 
-    func testQuotaEnvelopeAndCreditPolicy() throws {
+    @MainActor
+    func testQuotaEnvelopeAndCreditPolicy() async throws {
         let data = """
         {"error":"QUOTA_EXCEEDED","code":"QUOTA_EXCEEDED","message":"Weekly free recipe limit reached.","remaining":0,"limit":5,"resetAtMs":1762900000000}
         """.data(using: .utf8)!
@@ -222,7 +234,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertTrue(GenerationCreditPolicy.shouldConsumeCredit(httpStatus: 200))
     }
 
-    func testVeganAndGlutenFreeStaplesAreRemoved() {
+    @MainActor
+    func testVeganAndGlutenFreeStaplesAreRemoved() async {
         let filtered = KitchenStaples.filtered(
             ["Salt", "Butter", "Honey", "Flour", "Olive Oil"],
             dietaryExclusions: ["vegan", "gluten-free"]
@@ -230,7 +243,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(filtered, ["Salt", "Olive Oil"])
     }
 
-    func testPromptKeepsDietsOutOfFreeText() {
+    @MainActor
+    func testPromptKeepsDietsOutOfFreeText() async {
         let prompt = TonightMenuRequestBuilder.composedPrompt(
             mealTypes: ["Dinner"],
             cuisine: "Thai",
@@ -242,7 +256,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(exclusions, ["vegan", "gluten-free"])
     }
 
-    func testShareLinksAndServerIdentity() {
+    @MainActor
+    func testShareLinksAndServerIdentity() async {
         let id = UUID(uuidString: "CCCCCCCC-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
         let universal = URL(string: "https://reciplease.info/recipes/shared/\(id.uuidString.lowercased())")!
         let custom = URL(string: "reciplease://recipe/\(id.uuidString)")!
@@ -259,7 +274,8 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(merged.recipes.first?.steps, ["Simmer"])
     }
 
-    func testModificationKeepsUndoAndDropsPhotoWhenTheDishChanges() {
+    @MainActor
+    func testModificationKeepsUndoAndDropsPhotoWhenTheDishChanges() async {
         let original = Recipe(
             name: "Alfredo",
             description: "Creamy",
@@ -292,13 +308,15 @@ final class RecipeLogicTests: XCTestCase {
         XCTAssertEqual(merged.restoringUndo()?.imageURL, "https://example.com/alfredo.jpg")
     }
 
-    func testStepTimerReadsMinutesFromPlainText() {
+    @MainActor
+    func testStepTimerReadsMinutesFromPlainText() async {
         XCTAssertEqual(StepTimerDetector.detect(in: "Simmer for 8 minutes"), 480)
         XCTAssertEqual(CookTimer.seconds(timerSeconds: 360, stepText: "Simmer for 8 minutes"), 360)
         XCTAssertEqual(StepTimerDetector.detect(in: "Bake 1 hour 15 minutes"), 4500)
     }
 
-    func testSummaryLabelUsesTonightAndPinnedNames() {
+    @MainActor
+    func testSummaryLabelUsesTonightAndPinnedNames() async {
         let label = TonightMenuRequestBuilder.summaryLabel(
             ingredientNames: ["Chicken", "Spinach"],
             count: 6,

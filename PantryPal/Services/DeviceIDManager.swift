@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Manages the unique device identifier for the app.
 /// Prefers Keychain (persists across reinstall); migrates from UserDefaults for existing users and keeps both in sync.
@@ -35,11 +37,15 @@ class DeviceIDManager {
         
         // 3. New user: generate and store in both (never delete)
         let newID: String
+        #if canImport(UIKit)
         if let vendorID = UIDevice.current.identifierForVendor?.uuidString {
             newID = vendorID
         } else {
             newID = UUID().uuidString
         }
+        #else
+        newID = UUID().uuidString
+        #endif
         _ = KeychainHelper.set(newID, forKey: deviceIDKey)
         userDefaults.set(newID, forKey: deviceIDKey)
         return newID

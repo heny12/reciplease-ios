@@ -1,6 +1,8 @@
-// swift-tools-version: 5.9
-// Logic-only package so `swift test` can run on Linux without Xcode.
-// Open PantryPal.xcodeproj for the iOS app. This package does not build the UI.
+// swift-tools-version: 6.0
+// Logic and service package so `swift build` / `swift test` typecheck with swiftc.
+// Open PantryPal.xcodeproj for the iOS app. This package does not build SwiftUI screens.
+// Language mode matches the Xcode target's SWIFT_VERSION = 5.0, plus the same
+// member-import-visibility upcoming feature.
 
 import PackageDescription
 
@@ -16,29 +18,58 @@ let package = Package(
         .target(
             name: "PantryPal",
             path: "PantryPal",
-            sources: [
-                "Domain/StableIdentifier.swift",
-                "Domain/FlexibleDecoding.swift",
-                "Domain/StructuredCooking.swift",
-                "Domain/KitchenStaples.swift",
-                "Domain/RecipePitch.swift",
-                "Domain/PantryMatchCalculator.swift",
-                "Domain/EarlierIdeasMigration.swift",
-                "Domain/QuotaAndCredits.swift",
-                "Domain/RecipeLibraryQuery.swift",
-                "Domain/RecipeShareLink.swift",
-                "Domain/TonightMenuRequest.swift",
-                "Helpers/RecipeQuantityScaling.swift",
-                "Models/Ingredient.swift",
-                "Models/RecipeIngredient.swift",
-                "Models/Recipe.swift"
+            exclude: [
+                "Assets",
+                "Assets.xcassets",
+                "Docs",
+                "ViewModels",
+                "Views",
+                "icon.icon",
+                "ContentView.swift",
+                "PantryPalApp.swift",
+                "Helpers/EntitlementHelper.swift",
+                "Config/ColorScheme.swift",
+                "Config/ProMarketingCopy.swift",
+                "Helpers/BundleImage.swift",
+                "Helpers/DesignTokens.swift",
+                "Helpers/GIFView.swift",
+                "Helpers/HapticFeedback.swift",
+                "Helpers/LayoutHelpers.swift",
+                "Helpers/LoadingMessages.swift",
+                "Helpers/LoopingVideoPlayer.swift",
+                "Helpers/MainTabNavigationChrome.swift",
+                "Helpers/PantryIngredientListChrome.swift",
+                "Helpers/PantryQuickActionSheetSupport.swift",
+                "Helpers/StandardButtons.swift",
+                "Helpers/StandardCard.swift",
+                "Helpers/UIImage+Resize.swift",
+                "Services/AppAnalytics.swift",
+                "Services/GCSUploadService.swift",
+                "Services/GenerationCreditsManager.swift",
+                "Services/ImageCacheService.swift",
+                "Services/ImagePreloadService.swift",
+                "Services/LocalNotificationManager.swift",
+                "Services/QuickActionService.swift",
+                "Services/ReviewPromptService.swift",
+                "Services/TipOfDayService.swift",
+                "Services/MealPlanCalendarService.swift",
+                "Services/RevenueCatService.swift",
+                "Services/UsageTracker.swift"
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5),
+                .enableUpcomingFeature("MemberImportVisibility")
             ]
         ),
         .testTarget(
             name: "PantryPalLogicTests",
             dependencies: ["PantryPal"],
             path: "PantryPalTests",
-            sources: ["RecipeLogicTests.swift"]
+            exclude: ["PantryPalTests.swift"],
+            swiftSettings: [
+                .swiftLanguageMode(.v5),
+                .enableUpcomingFeature("MemberImportVisibility")
+            ]
         )
     ]
 )

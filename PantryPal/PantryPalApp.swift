@@ -113,14 +113,16 @@ struct PantryPalApp: App {
 }
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(
+    /// The delegate requirement is nonisolated. The app target defaults to MainActor isolation.
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        AppAnalytics.log(.notificationOpened, parameters: [
-            "id": response.notification.request.identifier
-        ])
+        let identifier = response.notification.request.identifier
+        Task { @MainActor in
+            AppAnalytics.log(.notificationOpened, parameters: ["id": identifier])
+        }
         completionHandler()
     }
 }

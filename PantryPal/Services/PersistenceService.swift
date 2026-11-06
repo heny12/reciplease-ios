@@ -212,6 +212,21 @@ struct SavedAppData: Codable {
     var groceryItems: [GroceryListItem]
     var generationSessions: [GenerationSession]
 
+    /// Declared explicitly. Implementing both `init(from:)` and `encode(to:)` suppresses synthesized `CodingKeys`.
+    private enum CodingKeys: String, CodingKey {
+        case imageURLs
+        case ingredients
+        case recipes
+        case favoritedRecipes
+        case favoriteRecipeIds
+        case cookbooks
+        case pantryInsights
+        case mealPlanByDay
+        case mealPlanCalendarEventIdsByDay
+        case groceryItems
+        case generationSessions
+    }
+
     init(
         imageURLs: [SavedImageData] = [],
         ingredients: [Ingredient] = [],
@@ -270,23 +285,30 @@ struct SavedAppData: Codable {
 }
 
 class PersistenceService {
-    static let shared = PersistenceService()
+    static let shared = PersistenceService(storageDirectory: nil)
     
     private let fileName = "reciplease_data.json"
     private let pantryMatchScoresFileName = "pantry_match_scores.json"
-    
-    private init() {}
+    private let storageDirectory: URL
+
+    private init(storageDirectory: URL?) {
+        self.storageDirectory = storageDirectory
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    }
+
+    /// Isolated store for tests. Production uses `shared`, which writes into the documents directory.
+    init(directory: URL) {
+        self.storageDirectory = directory
+    }
     
     /// Returns the URL for the saved data file
     private var fileURL: URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDirectory.appendingPathComponent(fileName)
+        storageDirectory.appendingPathComponent(fileName)
     }
 
     /// Returns the URL for persisted pantry match scores.
     private var pantryMatchScoresFileURL: URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDirectory.appendingPathComponent(pantryMatchScoresFileName)
+        storageDirectory.appendingPathComponent(pantryMatchScoresFileName)
     }
     
     /// Saves all app data to disk

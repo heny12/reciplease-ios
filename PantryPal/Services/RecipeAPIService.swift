@@ -6,7 +6,12 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(FirebaseAppCheck)
 import FirebaseAppCheck
+#endif
 
 // MARK: - API Error Response
 
@@ -238,16 +243,8 @@ class RecipeAPIService {
         let deviceID = DeviceIDManager.shared.deviceID
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
         
-        // Add App Check token
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-            print("🛡️ App Check token attached")
-        } catch {
-            print("⚠️ Failed to get App Check token: \(error.localizedDescription)")
-            // We proceed without the token - the backend might reject it if enforcement is on,
-            // but this prevents the app from crashing if App Check fails.
-        }
+        // Add App Check token. Proceed without one if App Check fails so the app does not crash.
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[RecipeAPI]")
         
         print("📱 Device ID header: \(deviceID)")
     }

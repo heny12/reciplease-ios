@@ -1771,7 +1771,7 @@ struct FullScreenImageView: View {
                                     .onChanged { value in
                                         scale = lastScale * value
                                     }
-                                    .onEnded { value in
+                                    .onEnded { _ in
                                         lastScale = scale
                                         // Snap back if too small
                                         if scale < 1.0 {

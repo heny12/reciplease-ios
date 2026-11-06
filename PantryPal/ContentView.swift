@@ -499,8 +499,8 @@ struct ContentView: View {
             requestReview()
             reviewPromptService.consumeReviewRequest()
         }
-        .onChange(of: quickActionService.pendingAction) { action in
-            guard let action else { return }
+        .onChange(of: quickActionService.pendingAction) { pending in
+            guard pending != nil else { return }
             handlePendingQuickActionIfNeeded()
         }
         .onChange(of: isAppLoading) { _ in
