@@ -605,6 +605,113 @@ struct EditIngredientView: View {
     }
 }
 
+private enum IngredientInPlaceField: Hashable {
+    case general, quantity
+}
+
+private struct AddIngredientInPlaceRow: View {
+    @ObservedObject var viewModel: PantryViewModel
+
+    @State private var general = ""
+    @State private var quantity = ""
+    @State private var errorMessage: String?
+    @FocusState private var focusedField: IngredientInPlaceField?
+
+    private var trimmedGeneral: String {
+        general.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var generalBinding: Binding<String> {
+        Binding(
+            get: { general },
+            set: { newValue in
+                if newValue.count <= AppConfig.maxIngredientNameLength {
+                    general = newValue
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: PantryIngredientListMetrics.rowHPadding) {
+                Group {
+                    if trimmedGeneral.isEmpty {
+                        Image(systemName: "plus")
+                            .font(.pantryCustom(size: 22, weight: .regular))
+                            .foregroundColor(.pantryTextSecondary)
+                            .frame(width: PantryIngredientListMetrics.iconColumnWidth, alignment: .center)
+                    } else {
+                        IngredientPantryLeadingIcon(icon: getIngredientIcon(for: trimmedGeneral))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    TextField("Ingredient name", text: generalBinding)
+                        .textFieldStyle(.plain)
+                        .font(.pantryBody)
+                        .fontWeight(.bold)
+                        .foregroundColor(.pantryTextPrimary)
+                        .lineLimit(1)
+                        .focused($focusedField, equals: .general)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .quantity }
+
+                    TextField("Quantity", text: $quantity)
+                        .textFieldStyle(.plain)
+                        .font(.pantrySubheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.pantrySecondary)
+                        .lineLimit(1)
+                        .padding(.top, -4)
+                        .focused($focusedField, equals: .quantity)
+                        .submitLabel(.done)
+                        .onSubmit { commitAdd() }
+                }
+            }
+
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .font(.pantryCaption2)
+                    .foregroundColor(.red)
+            }
+        }
+        .padding(.vertical, PantryIngredientListMetrics.rowVPadding)
+        .onChange(of: focusedField) { _, new in
+            if new == nil {
+                attemptCommitAddOnBlur()
+            }
+        }
+    }
+
+    private func attemptCommitAddOnBlur() {
+        let g = general.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !g.isEmpty else { return }
+        commitAdd()
+    }
+
+    private func commitAdd() {
+        errorMessage = nil
+        let g = general.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !g.isEmpty else { return }
+        do {
+            try viewModel.addIngredient(
+                generalName: g,
+                specificName: nil,
+                quantity: quantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "1" : quantity
+            )
+            HapticFeedback.success()
+            general = ""
+            quantity = ""
+            focusedField = nil
+        } catch let error as ValidationError {
+            errorMessage = error.localizedDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
 private struct IngredientInPlaceRow: View {
     @ObservedObject var viewModel: PantryViewModel
     let ingredient: Ingredient

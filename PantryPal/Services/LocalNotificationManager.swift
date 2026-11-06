@@ -5,6 +5,7 @@
 //  Opt-in local reminders for tomorrow's meals, a weekly planning nudge, and Use Soon items.
 //
 
+import Combine
 import Foundation
 import UserNotifications
 
