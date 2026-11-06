@@ -13,7 +13,7 @@ struct CookbookRecipeScanView: View {
     @ObservedObject var viewModel: PantryViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let maxPhotosAllowed: Int = 4
+    private var maxPhotosAllowed: Int { AppConfig.maxScanPhotos }
 
     @State private var activePickerSource: ImagePickerSource?
     @State private var cameraCaptureRequest = 0
@@ -274,7 +274,7 @@ struct CookbookRecipeScanView: View {
                         TipRow(icon: "camera.viewfinder", text: "Capture full recipe pages clearly")
                         TipRow(icon: "text.viewfinder", text: "Keep text sharp and in focus")
                         TipRow(icon: "sun.max.fill", text: "Use good lighting to reduce shadows")
-                        TipRow(icon: "square.grid.2x2.fill", text: "Use up to 4 photos for long recipes")
+                        TipRow(icon: "square.grid.2x2.fill", text: "Use up to \(maxPhotosAllowed) photos for long recipes")
                     }
                     .padding(LayoutHelpers.horizontalPadding)
                     .frame(maxWidth: .infinity, alignment: .leading)

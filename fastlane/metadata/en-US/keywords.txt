@@ -1,0 +1,1 @@
+recipe,pantry,fridge,meal plan,grocery,cookbook,dinner,ingredients,cook,scan

@@ -21,7 +21,7 @@ struct GenerationLimitSheet: View {
     var body: some View {
         PantryQuickActionSheetShell(minDetentHeight: 300) {
             VStack(alignment: .leading, spacing: 0) {
-                PantryQuickActionSheetChrome.sheetTitle("Trial")
+                PantryQuickActionSheetChrome.sheetTitle(AllowanceCopy.sheetTitle(isPro: credits.isProSubscriber))
 
                 if credits.isProSubscriber && credits.maxCreditsForCurrentTier > 10 {
                     Text("\(credits.remainingCredits) of \(credits.maxCreditsForCurrentTier)")
@@ -69,10 +69,15 @@ struct GenerationLimitSheet: View {
     }
 
     private var detailCopy: String {
-        if credits.isProSubscriber {
-            return "\(credits.remainingCredits) of \(credits.maxCreditsForCurrentTier) recipe generations and imports left this subscription period (pantry, cookbook pages, and web links)."
-        }
-        return "\(credits.remainingCredits) of \(credits.maxCreditsForCurrentTier) weekly recipe generations and imports left for pantry ideas, cookbook pages, and web links."
+        AllowanceCopy.detail(
+            AllowanceSnapshot(
+                remaining: credits.serverQuota?.remaining ?? credits.remainingCredits,
+                limit: credits.serverQuota?.limit ?? credits.maxCreditsForCurrentTier,
+                isPro: credits.isProSubscriber,
+                resetAtMs: credits.serverQuota?.resetAtMs,
+                serverMessage: credits.serverQuota?.message
+            )
+        )
     }
 }
 

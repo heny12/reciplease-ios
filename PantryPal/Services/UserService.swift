@@ -77,7 +77,7 @@ class UserService {
         let backendId = trimmedId.lowercased()
         
         guard !backendId.isEmpty else {
-            throw APIError.clientError(400, "INVALID_REQUEST", "Missing recipe id")
+            throw APIError.clientError(400, "INVALID_REQUEST", "Missing recipe id", nil)
         }
         
         guard let url = URL(string: baseURL + recipeEndpoint) else {
@@ -140,12 +140,12 @@ class UserService {
             
             if (500...599).contains(httpResponse.statusCode) {
                 print("🔴 [UserService] Recipe server error (\(httpResponse.statusCode)), code=\(errorCode ?? "none"), body=\(responseBody ?? "none")")
-                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else if (400...499).contains(httpResponse.statusCode) {
                 print("🟠 [UserService] Recipe client error (\(httpResponse.statusCode)), code=\(errorCode ?? "none"), body=\(responseBody ?? "none")")
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else {
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             }
         }
         
@@ -215,9 +215,9 @@ class UserService {
                 errorMessage = parsed.message
             }
             if (500...599).contains(httpResponse.statusCode) {
-                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else {
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             }
         }
 

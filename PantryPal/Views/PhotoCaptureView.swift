@@ -19,7 +19,7 @@ enum ImagePickerSource: Identifiable {
 struct PhotoCaptureView: View {
     @ObservedObject var viewModel: PantryViewModel
     @Environment(\.dismiss) private var dismiss
-    private let maxPhotosAllowed: Int = 4
+    private var maxPhotosAllowed: Int { AppConfig.maxScanPhotos }
 
     @State private var activePickerSource: ImagePickerSource?
     @State private var showingIngredientChoiceDialog = false

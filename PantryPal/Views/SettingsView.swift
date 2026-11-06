@@ -35,7 +35,7 @@ struct SettingsQuickActionSheet: View {
                         .foregroundStyle(Color.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 4)
-                    Text("Recipe generations this period")
+                    Text(AllowanceCopy.settingsLabel(isPro: revenueCatService.isProMember))
                         .font(.pantrySubheadline)
                         .foregroundStyle(Color.white.opacity(0.82))
                         .fixedSize(horizontal: false, vertical: true)

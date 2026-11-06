@@ -10,6 +10,7 @@ import FirebaseCore
 import FirebaseAppCheck
 import RevenueCat
 import UIKit
+import UserNotifications
 
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
@@ -59,6 +60,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         TipOfDayService.shared.loadTipOfDay()
 
         Self.configureMainNavigationBarAppearance()
+        UNUserNotificationCenter.current().delegate = self
+        Task { @MainActor in
+            QuickActionService.shared.registerHomeScreenShortcuts()
+        }
 
         Task { @MainActor in
             MealPlanCalendarPromptCoordinator.armPlanTabPromptIfCalendarDisabled()
@@ -104,6 +109,19 @@ struct PantryPalApp: App {
         WindowGroup {
             ContentView()
         }
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        AppAnalytics.log(.notificationOpened, parameters: [
+            "id": response.notification.request.identifier
+        ])
+        completionHandler()
     }
 }
 

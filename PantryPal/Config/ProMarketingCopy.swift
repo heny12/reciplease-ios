@@ -10,7 +10,6 @@ import SwiftUI
 
 /// Pro benefits shown on paywall and subscription management screens.
 enum ProMarketingBenefit: CaseIterable, Identifiable {
-    case unlimitedFridgePantryScans
     case scansAndGenerationsMonthly
     case unlimitedCookbooks
     case smartRecipeModification
@@ -21,8 +20,6 @@ enum ProMarketingBenefit: CaseIterable, Identifiable {
 
     var sfSymbolName: String {
         switch self {
-        case .unlimitedFridgePantryScans:
-            return "refrigerator"
         case .scansAndGenerationsMonthly:
             return "camera.viewfinder"
         case .unlimitedCookbooks:
@@ -38,8 +35,6 @@ enum ProMarketingBenefit: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .unlimitedFridgePantryScans:
-            return ProMarketingCopy.unlimitedFridgePantryScansTitle
         case .scansAndGenerationsMonthly:
             return ProMarketingCopy.proGenerationsAndImportsPerBillingPeriod
         case .unlimitedCookbooks:
@@ -58,7 +53,7 @@ enum ProMarketingBenefit: CaseIterable, Identifiable {
         switch self {
         case .smartRecipeModification:
             return "Servings, swaps, and tweaks tailored to what you have."
-        case .unlimitedFridgePantryScans, .scansAndGenerationsMonthly, .unlimitedCookbooks,
+        case .scansAndGenerationsMonthly, .unlimitedCookbooks,
                 .perServingNutritionEstimates, .higherMealPlanRecipeLimits:
             return nil
         }
@@ -67,8 +62,7 @@ enum ProMarketingBenefit: CaseIterable, Identifiable {
 
 enum ProMarketingCopy {
     static let benefitsSectionTitle = "What's included with Pro"
-    static let unlimitedFridgePantryScansTitle = "Unlimited Fridge & Pantry Scans"
-    static let monthlyResetFootnote = "Generation limits reset each subscription billing period."
+    static let monthlyResetFootnote = "Generation limits reset each subscription billing period. Fridge and pantry scans stay free."
 
     /// Onboarding “Cook for Free” body; weekly cap from `TRIAL_MAX_INTERACTIONS` (e.g. 5 tokens).
     static var onboardingCookForFreeBody: String {

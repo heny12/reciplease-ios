@@ -286,6 +286,12 @@ struct ContentView: View {
                     viewModel.shouldOpenRecipeGeneratePrompt = false
                 }
             }
+            .onChange(of: viewModel.shouldNavigateToFreshPicks) { _, go in
+                guard go else { return }
+                selectedTab = 1
+                viewModel.openFreshPicks = true
+                viewModel.shouldNavigateToFreshPicks = false
+            }
             .onChange(of: viewModel.shouldNavigateToCookbooks) { _, cookbookId in
                 guard let cookbookId else { return }
                 if showCookbookRecipeScan {
@@ -381,13 +387,11 @@ struct ContentView: View {
                 ScanWebRecipeView(viewModel: viewModel)
             }
             .sheet(isPresented: $showGlobalRecipePrompt) {
-                RecipePromptBottomSheet(viewModel: viewModel, isPresented: $showGlobalRecipePrompt)
-                    .onAppear {
-                        viewModel.isShowingRecipePrompt = true
-                    }
-                    .onDisappear {
-                        viewModel.isShowingRecipePrompt = false
-                    }
+                TonightMenuSheet(viewModel: viewModel, isPresented: $showGlobalRecipePrompt) {
+                    openScanCapture()
+                }
+                .onAppear { viewModel.isShowingRecipePrompt = true }
+                .onDisappear { viewModel.isShowingRecipePrompt = false }
             }
             .sheet(isPresented: $showGlobalAddIngredient) {
                 NavigationStack {
@@ -406,6 +410,16 @@ struct ContentView: View {
             )) {
                 RecipeGenerationLoadingView()
                     .background(Color.pantryPrimary.ignoresSafeArea())
+            }
+            .alert("Your pantry is empty", isPresented: Binding(
+                get: { viewModel.showEmptyPantryGuidance },
+                set: { viewModel.showEmptyPantryGuidance = $0 }
+            )) {
+                Button("Scan Fridge/Pantry") { openScanCapture() }
+                Button("Add Staples") { viewModel.addKitchenStaplesToPantry() }
+                Button("Not now", role: .cancel) {}
+            } message: {
+                Text("Add a few ingredients or your usual staples, then we can suggest dinner.")
             }
             .alert("Scan ingredients first", isPresented: $showScanFirstDialog) {
                 Button("Scan Ingredients") {
@@ -446,6 +460,9 @@ struct ContentView: View {
                     },
                     onGenerateMealPlan: {
                         openGenerateMealPlan()
+                    },
+                    onGenerateFirstDinner: {
+                        openRecipePrompt()
                     },
                     onAddPlanToGroceryList: {
                         openAddPlanToGroceryListFromActions()
@@ -679,7 +696,7 @@ struct ContentView: View {
         }
         
         // Minimum splash screen display time for better UX
-        try? await Task.sleep(nanoseconds: 3_000_000_000) // 1 second
+        try? await Task.sleep(nanoseconds: 800_000_000)
         
         // Hide loading screen with animation
         withAnimation(.easeOut(duration: 0.3)) {
@@ -699,27 +716,12 @@ struct ContentView: View {
         print("🔍 handleIncomingURL called")
         print("   scheme = \(scheme), host = \(host), path = \(url.path)")
         
-        guard scheme == "reciplease" else {
-            print("⚠️ Ignoring URL with unsupported scheme: \(scheme)")
+        guard let idString = RecipeShareLink.recipeID(from: url) else {
+            print("⚠️ Ignoring URL with unsupported scheme: \(scheme) host: \(host)")
             return
         }
-        
-        // For URLs like reciplease://recipe/{id}, host == "recipe" and the first
-        // non-slash path component is the id string.
-        if host == "recipe" {
-            let components = url.pathComponents.filter { $0 != "/" }
-            print("   pathComponents (filtered) = \(components)")
-            guard let idString = components.first, !idString.isEmpty else {
-                print("❌ No recipe id component found in URL path")
-                return
-            }
-            
-            print("✅ Parsed deep link recipe id string: \(idString)")
-            
-            await viewModel.handleRecipeDeepLink(idString: idString)
-        } else {
-            print("⚠️ Ignoring URL with unsupported host: \(host)")
-        }
+        print("✅ Parsed recipe link id: \(idString)")
+        await viewModel.handleRecipeDeepLink(idString: idString)
     }
 }
 
@@ -825,7 +827,7 @@ private struct TabHelpSheet: View {
     private var description: String {
         switch tab {
         case 0: return "Keep track of the ingredients in your fridge, freezer, and cupboards. Reciplease uses your pantry as a basis to create recipes and meal plans using what you already have, saving you money and reducing food waste."
-        case 1: return "Organize your recipes into digital cookbooks. Storing recipes in cookbooks allows you to easily group family recipes, recipes you want to try, and more. By default all new recipes are stored in your 'Uncategorized' cookbook."
+        case 1: return "Fresh Picks holds tonight's ideas until you save them. Cookbooks are only the recipes you choose to keep."
         case 2: return "Plan out your meals for the week ahead. Use the meal planner to generate full meal plans automatically, or manually assign recipes to specific days and times. Once you're happy with your meal plan, you can send everything you need straight to your grocery list."
         case 3: return "Your grocery list tracks the ingredients you need to cook recipes. Add items in batch from your meal plan, from individual recipes, or add them manually. As you shop, check items off your list to track what's left."
         default: return ""
@@ -890,7 +892,7 @@ private struct QuickActionSheetMenu: View {
             PantryQuickActionSheetChrome.sectionDivider
 
             PantryQuickActionSheetChrome.sectionHeader("Recipes")
-            PantryQuickActionSheetChrome.actionRow(title: "Generate Recipe", systemImage: "wand.and.stars", action: onGenerateRecipe)
+            PantryQuickActionSheetChrome.actionRow(title: "What sounds good tonight?", systemImage: "wand.and.stars", action: onGenerateRecipe)
             PantryQuickActionSheetChrome.actionRow(title: "Scan Cookbook", systemImage: "doc.viewfinder.fill", action: onScanRecipe)
             PantryQuickActionSheetChrome.actionRow(title: "Import from Web", systemImage: "square.and.arrow.down", action: onImportRecipe)
 

@@ -448,8 +448,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Reciplease needs full access to Calendar to create your Reciplease meal plan calendar and add planned meals at the right times.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal needs access to your camera to take photos of your fridge and pantry.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal needs access to your photo library to select photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Reciplease needs access to your camera to take photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Reciplease needs access to your photo library to select photos of your fridge and pantry.";
+				CODE_SIGN_ENTITLEMENTS = Reciplease.entitlements;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -490,8 +491,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Reciplease needs full access to Calendar to create your Reciplease meal plan calendar and add planned meals at the right times.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "PantryPal needs access to your camera to take photos of your fridge and pantry.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PantryPal needs access to your photo library to select photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Reciplease needs access to your camera to take photos of your fridge and pantry.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Reciplease needs access to your photo library to select photos of your fridge and pantry.";
+				CODE_SIGN_ENTITLEMENTS = Reciplease.entitlements;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

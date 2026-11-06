@@ -27,9 +27,11 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
     var isDefaultFavorites: Bool
     /// System bucket for generated/imported recipes (not user-deletable as a concept; may be recreated).
     var isDefaultUncategorized: Bool
+    /// Inbox for recipes migrated out of Uncategorized. Not a favorite and not a fresh session.
+    var isInbox: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, name, recipeIds, createdAt, isDefaultFavorites, isDefaultUncategorized
+        case id, name, recipeIds, createdAt, isDefaultFavorites, isDefaultUncategorized, isInbox
     }
 
     init(
@@ -38,7 +40,8 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         recipeIds: [UUID],
         createdAt: Date,
         isDefaultFavorites: Bool,
-        isDefaultUncategorized: Bool = false
+        isDefaultUncategorized: Bool = false,
+        isInbox: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -46,6 +49,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         self.createdAt = createdAt
         self.isDefaultFavorites = isDefaultFavorites
         self.isDefaultUncategorized = isDefaultUncategorized
+        self.isInbox = isInbox
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +60,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         isDefaultFavorites = try c.decodeIfPresent(Bool.self, forKey: .isDefaultFavorites) ?? false
         isDefaultUncategorized = try c.decodeIfPresent(Bool.self, forKey: .isDefaultUncategorized) ?? false
+        isInbox = try c.decodeIfPresent(Bool.self, forKey: .isInbox) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -66,6 +71,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         try c.encode(createdAt, forKey: .createdAt)
         try c.encode(isDefaultFavorites, forKey: .isDefaultFavorites)
         try c.encode(isDefaultUncategorized, forKey: .isDefaultUncategorized)
+        try c.encode(isInbox, forKey: .isInbox)
     }
 }
 
@@ -204,6 +210,7 @@ struct SavedAppData: Codable {
     /// Parallel map: EventKit event identifiers for synced meal plan events.
     var mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds]
     var groceryItems: [GroceryListItem]
+    var generationSessions: [GenerationSession]
 
     init(
         imageURLs: [SavedImageData] = [],
@@ -215,7 +222,8 @@ struct SavedAppData: Codable {
         pantryInsights: [String] = [],
         mealPlanByDay: [String: SavedDayMealPlan] = [:],
         mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds] = [:],
-        groceryItems: [GroceryListItem] = []
+        groceryItems: [GroceryListItem] = [],
+        generationSessions: [GenerationSession] = []
     ) {
         self.imageURLs = imageURLs
         self.ingredients = ingredients
@@ -227,6 +235,7 @@ struct SavedAppData: Codable {
         self.mealPlanByDay = mealPlanByDay
         self.mealPlanCalendarEventIdsByDay = mealPlanCalendarEventIdsByDay
         self.groceryItems = groceryItems
+        self.generationSessions = generationSessions
     }
 
     init(from decoder: Decoder) throws {
@@ -241,6 +250,22 @@ struct SavedAppData: Codable {
         mealPlanByDay = try container.decodeIfPresent([String: SavedDayMealPlan].self, forKey: .mealPlanByDay) ?? [:]
         mealPlanCalendarEventIdsByDay = try container.decodeIfPresent([String: SavedDayMealPlanCalendarIds].self, forKey: .mealPlanCalendarEventIdsByDay) ?? [:]
         groceryItems = try container.decodeIfPresent([GroceryListItem].self, forKey: .groceryItems) ?? []
+        generationSessions = try container.decodeIfPresent([GenerationSession].self, forKey: .generationSessions) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(imageURLs, forKey: .imageURLs)
+        try container.encode(ingredients, forKey: .ingredients)
+        try container.encode(recipes, forKey: .recipes)
+        try container.encode(favoritedRecipes, forKey: .favoritedRecipes)
+        try container.encode(favoriteRecipeIds, forKey: .favoriteRecipeIds)
+        try container.encode(cookbooks, forKey: .cookbooks)
+        try container.encode(pantryInsights, forKey: .pantryInsights)
+        try container.encode(mealPlanByDay, forKey: .mealPlanByDay)
+        try container.encode(mealPlanCalendarEventIdsByDay, forKey: .mealPlanCalendarEventIdsByDay)
+        try container.encode(groceryItems, forKey: .groceryItems)
+        try container.encode(generationSessions, forKey: .generationSessions)
     }
 }
 
@@ -275,7 +300,8 @@ class PersistenceService {
         pantryInsights: [String] = [],
         mealPlanByDay: [String: SavedDayMealPlan] = [:],
         mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds] = [:],
-        groceryItems: [GroceryListItem] = []
+        groceryItems: [GroceryListItem] = [],
+        generationSessions: [GenerationSession] = []
     ) {
         let data = SavedAppData(
             imageURLs: imageURLs,
@@ -287,7 +313,8 @@ class PersistenceService {
             pantryInsights: pantryInsights,
             mealPlanByDay: mealPlanByDay,
             mealPlanCalendarEventIdsByDay: mealPlanCalendarEventIdsByDay,
-            groceryItems: groceryItems
+            groceryItems: groceryItems,
+            generationSessions: generationSessions
         )
         
         do {

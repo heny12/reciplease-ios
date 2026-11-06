@@ -444,8 +444,21 @@ struct PaywallView: View {
     // MARK: - Helpers
     
     private func subscriptionDescription(for package: Package) -> String {
+        let renewal = renewalLine(for: package)
+        guard isIntroEligible(for: package),
+              let discount = package.storeProduct.introductoryDiscount,
+              discount.type == .introductory else {
+            return renewal
+        }
+        let intro = Self.formatIntroductoryOfferLine(discount: discount)
+        if package.packageType == .lifetime {
+            return intro
+        }
+        return "\(intro), then \(renewal)"
+    }
+
+    private func renewalLine(for package: Package) -> String {
         let price = package.localizedPriceString
-        
         switch package.packageType {
         case .weekly:
             return "\(price) per week"
