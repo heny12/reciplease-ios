@@ -58,6 +58,7 @@ struct PlanView: View {
     @State private var addPlanDayGrocerySheetTarget: AddPlanDayGrocerySheetTarget?
     @State private var singleRecipeForGrocery: Recipe?
     @State private var showMealPlanCalendarPermissionOffer = false
+    @State private var showMealReminders = false
 
     /// Local calendar days from yesterday through (today + 30), inclusive → 32 days.
     private var planDays: [Date] {
@@ -148,6 +149,9 @@ struct PlanView: View {
         } message: {
             Text("Reciplease needs full Calendar access to sync your planned meals to your calendar. You can keep using Plan without this.")
         }
+        .sheet(isPresented: $showMealReminders) {
+            MealReminderSettingsSheet(viewModel: viewModel)
+        }
     }
 
     private var planActionsPillsHeader: some View {
@@ -167,6 +171,11 @@ struct PlanView: View {
                 }
             }
             .opacity(upcomingDayKeys.isEmpty ? 0.45 : 1)
+
+            PantryPillButton(title: "Reminders", tint: .pantryPrimary, isExpanded: false) {
+                HapticFeedback.light()
+                showMealReminders = true
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

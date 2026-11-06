@@ -1,0 +1,80 @@
+name: iOS Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ios-verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stub gitignored plists
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def write_if_missing(path: Path, body: str) -> None:
+              if path.exists():
+                  print(f"keep {path}")
+                  return
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(body)
+              print(f"wrote {path}")
+
+          env = """<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>RECIPE_API_BASE_URL</key><string>https://example.com</string>
+            <key>RECIPLEASE_API_BASE_URL</key><string>https://example.com</string>
+            <key>REVENUECAT_API_KEY</key><string>stub</string>
+            <key>MAX_SCAN_PHOTOS</key><string>4</string>
+            <key>TRIAL_MAX_INTERACTIONS</key><string>5</string>
+            <key>PRO_MAX_INTERACTIONS</key><string>100</string>
+            <key>USAGE_LIMITS_ENABLED</key><string>true</string>
+          </dict></plist>
+          """
+          google = """<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>API_KEY</key><string>stub</string>
+            <key>GCM_SENDER_ID</key><string>1</string>
+            <key>PLIST_VERSION</key><string>1</string>
+            <key>BUNDLE_ID</key><string>com.henrychipman.Reciplease.dev</string>
+            <key>PROJECT_ID</key><string>stub</string>
+            <key>STORAGE_BUCKET</key><string>stub.appspot.com</string>
+            <key>GOOGLE_APP_ID</key><string>1:1:ios:stub</string>
+          </dict></plist>
+          """
+          write_if_missing(Path("EnvProd.plist"), env)
+          write_if_missing(Path("EnvSandbox.plist"), env)
+          write_if_missing(Path("PantryPal/GoogleService-Info.plist"), google)
+          PY
+
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint lint --config .swiftlint.yml --strict --quiet
+
+      - name: Swift package tests
+        run: swift test
+
+      - name: Unsigned iOS Simulator build
+        run: |
+          xcodebuild \
+            -project PantryPal.xcodeproj \
+            -scheme PantryPal \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            RECIPE_API_BASE_URL=https://example.com \
+            RECIPLEASE_API_BASE_URL=https://example.com \
+            REVENUECAT_API_KEY=stub \
+            build

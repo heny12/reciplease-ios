@@ -6,7 +6,12 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(FirebaseAppCheck)
 import FirebaseAppCheck
+#endif
 
 // MARK: - API Error Response
 
@@ -45,8 +50,8 @@ struct APIErrorResponse: Codable {
 enum APIError: Error, LocalizedError {
     case invalidURL
     case invalidResponse
-    case serverError(Int, String?, String?) // status code, error code, message
-    case clientError(Int, String?, String?) // status code, error code, message
+    case serverError(Int, String?, String?, QuotaExceededDetails?) // status code, error code, message, quota
+    case clientError(Int, String?, String?, QuotaExceededDetails?) // status code, error code, message, quota
     case decodingError(Error)
     case networkError(Error)
     /// Client-side validation before calling the recipe API (e.g. nutrition / generate payload).
@@ -59,10 +64,10 @@ enum APIError: Error, LocalizedError {
             return "We couldn't reach our kitchen. Please check your connection and try again."
         case .invalidResponse:
             return "We received an unexpected response. Please try again."
-        case .serverError(let statusCode, let errorCode, let message):
-            return errorMessageForCode(statusCode: statusCode, errorCode: errorCode, message: message)
-        case .clientError(let statusCode, let errorCode, let message):
-            return errorMessageForCode(statusCode: statusCode, errorCode: errorCode, message: message)
+        case .serverError(let statusCode, let errorCode, let message, let quota):
+            return errorMessageForCode(statusCode: statusCode, errorCode: errorCode, message: message, quota: quota)
+        case .clientError(let statusCode, let errorCode, let message, let quota):
+            return errorMessageForCode(statusCode: statusCode, errorCode: errorCode, message: message, quota: quota)
         case .decodingError:
             return "We had trouble reading that recipe. Please try again."
         case .networkError(let error):
@@ -78,7 +83,7 @@ enum APIError: Error, LocalizedError {
     }
     
     /// Returns user-friendly error message based on API error code
-    private func errorMessageForCode(statusCode: Int, errorCode: String?, message: String?) -> String {
+    private func errorMessageForCode(statusCode: Int, errorCode: String?, message: String?, quota: QuotaExceededDetails? = nil) -> String {
         // Use specific error code if available, otherwise fall back to status code
         guard let errorCode = errorCode else {
             return genericErrorMessage(statusCode: statusCode)
@@ -94,7 +99,17 @@ enum APIError: Error, LocalizedError {
         case "RATE_LIMIT":
             return "You're cooking up a storm! Please wait a moment before trying again."
         case "QUOTA_EXCEEDED":
-            return "Our chefs are a bit busy right now. Please try again later."
+            let snapshot = AllowanceSnapshot(
+                remaining: quota?.remaining ?? 0,
+                limit: quota?.limit ?? 0,
+                isPro: false,
+                resetAtMs: quota?.resetAtMs,
+                serverMessage: quota?.message ?? message
+            )
+            if quota != nil || message != nil {
+                return AllowanceCopy.detail(snapshot)
+            }
+            return "You've used this week's free recipe allowance."
         case "SERVICE_UNAVAILABLE":
             return "Our kitchen is temporarily closed. Please try again in a moment."
         case "PARSE_ERROR":
@@ -139,9 +154,18 @@ enum APIError: Error, LocalizedError {
     }
     
     /// Returns the API error code if available
+    var quotaDetails: QuotaExceededDetails? {
+        switch self {
+        case .serverError(_, _, _, let quota), .clientError(_, _, _, let quota):
+            return quota
+        default:
+            return nil
+        }
+    }
+
     var apiErrorCode: String? {
         switch self {
-        case .serverError(_, let errorCode, _), .clientError(_, let errorCode, _):
+        case .serverError(_, let errorCode, _, _), .clientError(_, let errorCode, _, _):
             return errorCode
         case .invalidIngredients:
             return nil
@@ -159,7 +183,7 @@ class RecipeAPIService {
     private init() {}
     
     /// Creates an APIError from an HTTP response
-    private func handleHTTPError(statusCode: Int, data: Data) -> APIError {
+    func handleHTTPError(statusCode: Int, data: Data) -> APIError {
         let responseBody = String(data: data, encoding: .utf8)
         
         // Try to parse the error response to extract error code and message
@@ -183,6 +207,8 @@ class RecipeAPIService {
             }
         }
         
+        let quota = QuotaEnvelopeParser.parse(data: data)
+
         if (500...599).contains(statusCode) {
             print("🔴 Server Error (\(statusCode))")
             if let code = errorCode {
@@ -191,7 +217,7 @@ class RecipeAPIService {
             if let body = responseBody {
                 print("   Response: \(body)")
             }
-            return .serverError(statusCode, errorCode, errorMessage)
+            return .serverError(statusCode, errorCode, errorMessage, quota)
         } else if (400...499).contains(statusCode) {
             print("🟠 Client Error (\(statusCode))")
             if let code = errorCode {
@@ -200,16 +226,16 @@ class RecipeAPIService {
             if let body = responseBody {
                 print("   Response: \(body)")
             }
-            return .clientError(statusCode, errorCode, errorMessage)
+            return .clientError(statusCode, errorCode, errorMessage, quota)
         }
         
-        return .clientError(statusCode, errorCode, errorMessage)
+        return .clientError(statusCode, errorCode, errorMessage, quota)
     }
     
     // MARK: - Request Configuration
     
     /// Configures a URLRequest with common headers including device ID and App Check token
-    private func configureRequest(_ request: inout URLRequest) async {
+    func configureRequest(_ request: inout URLRequest) async {
         // Set Content-Type
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -217,16 +243,8 @@ class RecipeAPIService {
         let deviceID = DeviceIDManager.shared.deviceID
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
         
-        // Add App Check token
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-            print("🛡️ App Check token attached")
-        } catch {
-            print("⚠️ Failed to get App Check token: \(error.localizedDescription)")
-            // We proceed without the token - the backend might reject it if enforcement is on,
-            // but this prevents the app from crashing if App Check fails.
-        }
+        // Add App Check token. Proceed without one if App Check fails so the app does not crash.
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[RecipeAPI]")
         
         print("📱 Device ID header: \(deviceID)")
     }
@@ -723,10 +741,14 @@ class RecipeAPIService {
             await self.configureRequest(&request)
             request.timeoutInterval = 60
 
-            let requestBody: [String: Any] = [
+            var requestBody: [String: Any] = [
                 "recipe": recipeJSONObjectForNestedRecipePayload(recipe),
                 "prompt": prompt
             ]
+            let exclusions = DietaryConstraint.wireExclusions(from: RecipeGenerationFormOptionData.preferredDietaryIdsFromStorage())
+            if !exclusions.isEmpty {
+                requestBody["dietaryExclusions"] = exclusions
+            }
             
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
             print("📤 Sending recipe modification request...")
@@ -853,6 +875,122 @@ class RecipeAPIService {
             }
             throw APIError.decodingError(error)
         }
+    }
+
+    struct TonightMenuFetchResult {
+        var sessionId: String?
+        var pitches: [RecipePitch]
+        var expandedByPitchId: [String: Recipe]
+        var usedV1Fallback: Bool
+        var status: String?
+        var reasonCodes: [String]
+    }
+
+    /// Asks for pitch cards. A 404 on `/api/v2/recipe/pitches` falls back to `/api/recipe/generate`.
+    func fetchTonightMenu(_ wire: TonightMenuWireRequest) async throws -> TonightMenuFetchResult {
+        var request = URLRequest(url: APIConfig.recipePitchesURL)
+        request.httpMethod = "POST"
+        await configureRequest(&request)
+        request.timeoutInterval = 90
+        request.httpBody = try JSONEncoder().encode(wire)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if http.statusCode == 404 {
+            print("↩️ Pitches endpoint returned 404. Falling back to /api/recipe/generate")
+            return try await fetchTonightMenuLegacy(wire.withCount(5))
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw handleHTTPError(statusCode: http.statusCode, data: data)
+        }
+        let decoded = try JSONDecoder().decode(PitchDeckResponse.self, from: data)
+        let sessionId = decoded.sessionId ?? wire.sessionId
+        return TonightMenuFetchResult(
+            sessionId: sessionId,
+            pitches: decoded.pitches,
+            expandedByPitchId: [:],
+            usedV1Fallback: false,
+            status: decoded.status,
+            reasonCodes: decoded.reasonCodes
+        )
+    }
+
+    func expandPitch(
+        sessionId: String?,
+        pitch: RecipePitch,
+        wire: TonightMenuWireRequest
+    ) async throws -> (recipe: Recipe, cached: Bool) {
+        var body: [String: Any] = [
+            "pitchId": pitch.pitchId,
+            "pitch": [
+                "pitchId": pitch.pitchId,
+                "lane": pitch.lane as Any,
+                "title": pitch.title,
+                "hook": pitch.hook as Any,
+                "totalTimeMinutes": pitch.totalTimeMinutes as Any,
+                "prepTimeMinutes": pitch.prepTimeMinutes as Any,
+                "cookTimeMinutes": pitch.cookTimeMinutes as Any,
+                "difficulty": pitch.difficulty as Any,
+                "servings": pitch.servings as Any,
+                "cuisine": pitch.cuisine as Any,
+                "technique": pitch.technique as Any,
+                "pantryIngredientsUsed": pitch.pantryIngredientsUsed,
+                "staplesUsed": pitch.staplesUsed,
+                "extraIngredients": pitch.extraIngredients
+            ]
+        ]
+        if let sessionId { body["sessionId"] = sessionId }
+        body["strictness"] = wire.strictness
+        body["dietaryExclusions"] = wire.dietaryExclusions
+        body["confirmedStaples"] = wire.confirmedStaples
+        body["ingredients"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(wire.ingredients))
+        if let servings = wire.servings { body["servings"] = servings }
+
+        var request = URLRequest(url: APIConfig.recipeExpandURL)
+        request.httpMethod = "POST"
+        await configureRequest(&request)
+        request.timeoutInterval = 90
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else {
+            throw handleHTTPError(statusCode: http.statusCode, data: data)
+        }
+        if let envelope = try? JSONDecoder().decode(ExpandRecipeResponse.self, from: data) {
+            return (envelope.recipe, envelope.cached ?? false)
+        }
+        let recipe = try JSONDecoder().decode(Recipe.self, from: data)
+        return (recipe, false)
+    }
+
+    private func fetchTonightMenuLegacy(_ wire: TonightMenuWireRequest) async throws -> TonightMenuFetchResult {
+        var request = URLRequest(url: APIConfig.recipesURL)
+        request.httpMethod = "POST"
+        await configureRequest(&request)
+        request.timeoutInterval = 90
+        request.httpBody = try JSONEncoder().encode(wire)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard GenerationCreditPolicy.shouldConsumeCredit(httpStatus: http.statusCode) else {
+            throw handleHTTPError(statusCode: http.statusCode, data: data)
+        }
+        let decoded = try JSONDecoder().decode(RecipeResponse.self, from: data)
+        var pitches: [RecipePitch] = []
+        var expanded: [String: Recipe] = [:]
+        for recipe in decoded.recipes {
+            let pitch = recipe.pitchCard()
+            pitches.append(pitch)
+            expanded[pitch.pitchId] = recipe
+        }
+        return TonightMenuFetchResult(
+            sessionId: nil,
+            pitches: pitches,
+            expandedByPitchId: expanded,
+            usedV1Fallback: true,
+            status: pitches.isEmpty ? "limited" : "ok",
+            reasonCodes: pitches.isEmpty ? ["no_recipes"] : []
+        )
     }
 }
 

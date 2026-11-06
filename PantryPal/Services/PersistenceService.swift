@@ -27,9 +27,11 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
     var isDefaultFavorites: Bool
     /// System bucket for generated/imported recipes (not user-deletable as a concept; may be recreated).
     var isDefaultUncategorized: Bool
+    /// Inbox for recipes migrated out of Uncategorized. Not a favorite and not a fresh session.
+    var isInbox: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, name, recipeIds, createdAt, isDefaultFavorites, isDefaultUncategorized
+        case id, name, recipeIds, createdAt, isDefaultFavorites, isDefaultUncategorized, isInbox
     }
 
     init(
@@ -38,7 +40,8 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         recipeIds: [UUID],
         createdAt: Date,
         isDefaultFavorites: Bool,
-        isDefaultUncategorized: Bool = false
+        isDefaultUncategorized: Bool = false,
+        isInbox: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -46,6 +49,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         self.createdAt = createdAt
         self.isDefaultFavorites = isDefaultFavorites
         self.isDefaultUncategorized = isDefaultUncategorized
+        self.isInbox = isInbox
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +60,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         isDefaultFavorites = try c.decodeIfPresent(Bool.self, forKey: .isDefaultFavorites) ?? false
         isDefaultUncategorized = try c.decodeIfPresent(Bool.self, forKey: .isDefaultUncategorized) ?? false
+        isInbox = try c.decodeIfPresent(Bool.self, forKey: .isInbox) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -66,6 +71,7 @@ struct SavedCookbook: Codable, Identifiable, Hashable {
         try c.encode(createdAt, forKey: .createdAt)
         try c.encode(isDefaultFavorites, forKey: .isDefaultFavorites)
         try c.encode(isDefaultUncategorized, forKey: .isDefaultUncategorized)
+        try c.encode(isInbox, forKey: .isInbox)
     }
 }
 
@@ -204,6 +210,22 @@ struct SavedAppData: Codable {
     /// Parallel map: EventKit event identifiers for synced meal plan events.
     var mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds]
     var groceryItems: [GroceryListItem]
+    var generationSessions: [GenerationSession]
+
+    /// Declared explicitly. Implementing both `init(from:)` and `encode(to:)` suppresses synthesized `CodingKeys`.
+    private enum CodingKeys: String, CodingKey {
+        case imageURLs
+        case ingredients
+        case recipes
+        case favoritedRecipes
+        case favoriteRecipeIds
+        case cookbooks
+        case pantryInsights
+        case mealPlanByDay
+        case mealPlanCalendarEventIdsByDay
+        case groceryItems
+        case generationSessions
+    }
 
     init(
         imageURLs: [SavedImageData] = [],
@@ -215,7 +237,8 @@ struct SavedAppData: Codable {
         pantryInsights: [String] = [],
         mealPlanByDay: [String: SavedDayMealPlan] = [:],
         mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds] = [:],
-        groceryItems: [GroceryListItem] = []
+        groceryItems: [GroceryListItem] = [],
+        generationSessions: [GenerationSession] = []
     ) {
         self.imageURLs = imageURLs
         self.ingredients = ingredients
@@ -227,6 +250,7 @@ struct SavedAppData: Codable {
         self.mealPlanByDay = mealPlanByDay
         self.mealPlanCalendarEventIdsByDay = mealPlanCalendarEventIdsByDay
         self.groceryItems = groceryItems
+        self.generationSessions = generationSessions
     }
 
     init(from decoder: Decoder) throws {
@@ -241,27 +265,50 @@ struct SavedAppData: Codable {
         mealPlanByDay = try container.decodeIfPresent([String: SavedDayMealPlan].self, forKey: .mealPlanByDay) ?? [:]
         mealPlanCalendarEventIdsByDay = try container.decodeIfPresent([String: SavedDayMealPlanCalendarIds].self, forKey: .mealPlanCalendarEventIdsByDay) ?? [:]
         groceryItems = try container.decodeIfPresent([GroceryListItem].self, forKey: .groceryItems) ?? []
+        generationSessions = try container.decodeIfPresent([GenerationSession].self, forKey: .generationSessions) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(imageURLs, forKey: .imageURLs)
+        try container.encode(ingredients, forKey: .ingredients)
+        try container.encode(recipes, forKey: .recipes)
+        try container.encode(favoritedRecipes, forKey: .favoritedRecipes)
+        try container.encode(favoriteRecipeIds, forKey: .favoriteRecipeIds)
+        try container.encode(cookbooks, forKey: .cookbooks)
+        try container.encode(pantryInsights, forKey: .pantryInsights)
+        try container.encode(mealPlanByDay, forKey: .mealPlanByDay)
+        try container.encode(mealPlanCalendarEventIdsByDay, forKey: .mealPlanCalendarEventIdsByDay)
+        try container.encode(groceryItems, forKey: .groceryItems)
+        try container.encode(generationSessions, forKey: .generationSessions)
     }
 }
 
 class PersistenceService {
-    static let shared = PersistenceService()
+    static let shared = PersistenceService(storageDirectory: nil)
     
     private let fileName = "reciplease_data.json"
     private let pantryMatchScoresFileName = "pantry_match_scores.json"
-    
-    private init() {}
+    private let storageDirectory: URL
+
+    private init(storageDirectory: URL?) {
+        self.storageDirectory = storageDirectory
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    }
+
+    /// Isolated store for tests. Production uses `shared`, which writes into the documents directory.
+    init(directory: URL) {
+        self.storageDirectory = directory
+    }
     
     /// Returns the URL for the saved data file
     private var fileURL: URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDirectory.appendingPathComponent(fileName)
+        storageDirectory.appendingPathComponent(fileName)
     }
 
     /// Returns the URL for persisted pantry match scores.
     private var pantryMatchScoresFileURL: URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDirectory.appendingPathComponent(pantryMatchScoresFileName)
+        storageDirectory.appendingPathComponent(pantryMatchScoresFileName)
     }
     
     /// Saves all app data to disk
@@ -275,7 +322,8 @@ class PersistenceService {
         pantryInsights: [String] = [],
         mealPlanByDay: [String: SavedDayMealPlan] = [:],
         mealPlanCalendarEventIdsByDay: [String: SavedDayMealPlanCalendarIds] = [:],
-        groceryItems: [GroceryListItem] = []
+        groceryItems: [GroceryListItem] = [],
+        generationSessions: [GenerationSession] = []
     ) {
         let data = SavedAppData(
             imageURLs: imageURLs,
@@ -287,7 +335,8 @@ class PersistenceService {
             pantryInsights: pantryInsights,
             mealPlanByDay: mealPlanByDay,
             mealPlanCalendarEventIdsByDay: mealPlanCalendarEventIdsByDay,
-            groceryItems: groceryItems
+            groceryItems: groceryItems,
+            generationSessions: generationSessions
         )
         
         do {

@@ -131,13 +131,9 @@ struct IngredientsView: View {
         }
         .background(Color.pantryBackground)
         .sheet(isPresented: $showingRecipePrompt) {
-            RecipePromptBottomSheet(viewModel: viewModel, isPresented: $showingRecipePrompt)
-                .onAppear {
-                    viewModel.isShowingRecipePrompt = true
-                }
-                .onDisappear {
-                    viewModel.isShowingRecipePrompt = false
-                }
+            TonightMenuSheet(viewModel: viewModel, isPresented: $showingRecipePrompt, onScanPantry: onRequestIngredientScan)
+                .onAppear { viewModel.isShowingRecipePrompt = true }
+                .onDisappear { viewModel.isShowingRecipePrompt = false }
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK") {
@@ -231,8 +227,6 @@ struct IngredientsView: View {
 
             pantryClearIngredientsPill
 
-            pantryClearIngredientsPill
-
             PantryPillButton(title: "Recipe Matches", tint: .pantrySecondary, isExpanded: suggestedRecipesPillExpanded) {
                 HapticFeedback.light()
                 withAnimation(pantryPillEaseAnimation) {
@@ -249,7 +243,7 @@ struct IngredientsView: View {
                     .presentationCompactAdaptation(.popover)
             }
 
-            PantryPillButton(title: "Generate Recipe", tint: .pantryPrimary, isExpanded: false) {
+            PantryPillButton(title: "What sounds good?", tint: .pantryPrimary, isExpanded: false) {
                 HapticFeedback.medium()
                 showingRecipePrompt = true
             }
@@ -611,474 +605,6 @@ struct EditIngredientView: View {
     }
 }
 
-struct RecipePromptBottomSheet: View {
-    @ObservedObject var viewModel: PantryViewModel
-    @Binding var isPresented: Bool
-    @Environment(\.dismiss) private var dismiss
-    
-    // Meal Type options with icons
-    let mealTypes: [OptionItem] = [
-        OptionItem(id: "Any", name: "Any", icon: "circle.grid.2x2"),
-        OptionItem(id: "Breakfast", name: "Breakfast", icon: "sunrise.fill"),
-        OptionItem(id: "Lunch", name: "Lunch", icon: "sun.max.fill"),
-        OptionItem(id: "Dinner", name: "Dinner", icon: "moon.fill"),
-        OptionItem(id: "Snack", name: "Snack", icon: "hand.raised.fill"),
-        OptionItem(id: "Dessert", name: "Dessert", icon: "birthday.cake.fill")
-    ]
-    
-    @State private var selectedMealTypes: Set<String> = ["Any"]
-    @State private var selectedCuisines: Set<String> = ["Any"]
-    @State private var selectedDietary: Set<String> = []
-    @State private var additionalPreferences = ""
-    @State private var promptErrorMessage: String?
-    @State private var pantryIngredientStrictness: MealPlanStrictness = .any
-    
-    @State private var currentPage = 0
-    private let totalPages = 5
-
-    private var additionalPreferencesBinding: Binding<String> {
-        Binding(
-            get: { additionalPreferences },
-            set: { newValue in
-                // Allow typing but we'll validate the full prompt before generating
-                additionalPreferences = newValue
-                promptErrorMessage = nil // Clear error when user types
-            }
-        )
-    }
-    
-    // Build the prompt string from all selections
-    private var generatedPrompt: String {
-        var promptParts: [String] = []
-        
-        // Meal Type
-        let mealTypesFiltered = selectedMealTypes.filter { $0 != "Any" }
-        if !mealTypesFiltered.isEmpty {
-            promptParts.append("Meal type: \(mealTypesFiltered.joined(separator: ", "))")
-        }
-        
-        // Cuisine
-        let cuisinesFiltered = selectedCuisines.filter { $0 != "Any" }
-        if !cuisinesFiltered.isEmpty {
-            promptParts.append("Cuisine: \(cuisinesFiltered.joined(separator: ", "))")
-        }
-        
-        // Dietary restrictions
-        if !selectedDietary.isEmpty {
-            promptParts.append("Dietary requirements: \(selectedDietary.joined(separator: ", "))")
-        }
-        
-        // Additional preferences
-        if !additionalPreferences.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            promptParts.append(additionalPreferences)
-        }
-        
-        let fullPrompt = promptParts.joined(separator: ". ")
-        
-        // Enforce max length
-        if fullPrompt.count > AppConfig.maxGeneratePromptLength {
-            return String(fullPrompt.prefix(AppConfig.maxGeneratePromptLength))
-        }
-        
-        return fullPrompt
-    }
-    
-    // Check if prompt is valid
-    private var isPromptValid: Bool {
-        let promptParts: [String] = {
-            var parts: [String] = []
-            let mealTypesFiltered = selectedMealTypes.filter { $0 != "Any" }
-            if !mealTypesFiltered.isEmpty {
-                parts.append("Meal type: \(mealTypesFiltered.joined(separator: ", "))")
-            }
-            let cuisinesFiltered = selectedCuisines.filter { $0 != "Any" }
-            if !cuisinesFiltered.isEmpty {
-                parts.append("Cuisine: \(cuisinesFiltered.joined(separator: ", "))")
-            }
-            if !selectedDietary.isEmpty {
-                parts.append("Dietary requirements: \(selectedDietary.joined(separator: ", "))")
-            }
-            if !additionalPreferences.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                parts.append(additionalPreferences)
-            }
-            return parts
-        }()
-        
-        let fullPrompt = promptParts.joined(separator: ". ")
-        return fullPrompt.count <= AppConfig.maxGeneratePromptLength
-    }
-
-    private var selectedPreferenceCount: Int {
-        let mealCount = selectedMealTypes.filter { $0 != "Any" }.count
-        let cuisineCount = selectedCuisines.filter { $0 != "Any" }.count
-        let dietaryCount = selectedDietary.count
-        return mealCount + cuisineCount + dietaryCount
-    }
-    
-    private func applyCannedSpecialRequest(_ request: String) {
-        HapticFeedback.light()
-        additionalPreferences = request
-        promptErrorMessage = nil
-    }
-
-    @ViewBuilder
-    private func recipePromptPantryStrictnessChip(
-        _ value: MealPlanStrictness,
-        title: String,
-        icon: String,
-        accessibilityLabel: String
-    ) -> some View {
-        let option = OptionItem(id: value.rawValue, name: title, icon: icon)
-        let isDisabled = value == .only && viewModel.ingredients.isEmpty
-        return OptionChip(
-            option: option,
-            isSelected: pantryIngredientStrictness == value,
-            style: .generateSheet,
-            size: .large,
-            isFullWidth: true
-        ) {
-            HapticFeedback.light()
-            pantryIngredientStrictness = value
-        }
-        .disabled(isDisabled)
-        .opacity(isDisabled ? 0.4 : 1.0)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(pantryIngredientStrictness == value ? [.isSelected] : [])
-    }
-    
-    private var footerButtonTitle: String {
-        switch currentPage {
-        case totalPages - 1: return "Generate Recipe"
-        default: return "Next"
-        }
-    }
-    
-    private var footerButtonDisabled: Bool {
-        if currentPage == totalPages - 1 {
-            return !isPromptValid || viewModel.isGeneratingRecipes
-        }
-        return false
-    }
-    
-    private func footerButtonAction() {
-        if currentPage < totalPages - 1 {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                currentPage += 1
-            }
-        } else {
-            if !isPromptValid {
-                promptErrorMessage = ValidationError.generatePromptTooLong(maxLength: AppConfig.maxGeneratePromptLength).localizedDescription
-                return
-            }
-            let finalPrompt = generatedPrompt.isEmpty ? nil : generatedPrompt
-            Task {
-                await viewModel.generateRecipes(
-                    prompt: finalPrompt,
-                    strictness: pantryIngredientStrictness
-                )
-            }
-            dismiss()
-        }
-    }
-
-    private var headerTitle: String {
-        switch currentPage {
-        case 0: return "What type of meal would you like to cook?"
-        case 1: return "What ingredients should we use?"
-        case 2: return "Any specific cuisine in mind?"
-        case 3: return "Any dietary preferences?"
-        case 4: return "Any final special requests?"
-        default: return "Generate Recipe"
-        }
-    }
-
-    var body: some View {
-        PantryGenerateWizardShell(
-            currentPage: currentPage,
-            totalPages: totalPages,
-            title: headerTitle,
-            onBack: {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    currentPage -= 1
-                }
-            },
-            onCancel: {
-                dismiss()
-            },
-            footerButtonTitle: footerButtonTitle,
-            footerButtonAction: footerButtonAction,
-            isFooterButtonDisabled: footerButtonDisabled,
-            isFooterButtonLoading: viewModel.isGeneratingRecipes
-        ) {
-            Group {
-                switch currentPage {
-                case 0:
-                    mealTypePage
-                case 1:
-                    pantryStrictnessPage
-                case 2:
-                    cuisinesPage
-                case 3:
-                    dietaryPage
-                case 4:
-                    specialRequestsPage
-                default:
-                    EmptyView()
-                }
-            }
-            .transition(.asymmetric(insertion: .opacity, removal: .opacity))
-        }
-    }
-
-    // MARK: - Pages
-
-    private var mealTypePage: some View {
-        PantryGenerateSheetFormSection(title: nil, subtitle: "Pick one or more meal types", showsTrailingDivider: false) {
-            VStack(spacing: 8) {
-                ForEach(mealTypes) { option in
-                    OptionChip(
-                        option: option,
-                        isSelected: selectedMealTypes.contains(option.id),
-                        style: .generateSheet,
-                        size: .large,
-                        isFullWidth: true
-                    ) {
-                        HapticFeedback.light()
-                        if option.id == "Any" {
-                            if selectedMealTypes.contains("Any") {
-                                selectedMealTypes.removeAll()
-                            } else {
-                                selectedMealTypes = ["Any"]
-                            }
-                        } else {
-                            selectedMealTypes.remove("Any")
-                            if selectedMealTypes.contains(option.id) {
-                                selectedMealTypes.remove(option.id)
-                            } else {
-                                selectedMealTypes.insert(option.id)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var pantryStrictnessPage: some View {
-        PantryGenerateSheetFormSection(
-            title: nil,
-            subtitle: RecipeGenerationFormOptionData.generateSheetPantryIngredientsSubtitle,
-            showsTrailingDivider: false
-        ) {
-            VStack(spacing: 8) {
-                recipePromptPantryStrictnessChip(
-                    .any,
-                    title: "Any ingredients",
-                    icon: "globe",
-                    accessibilityLabel: "Any ingredients, recipes may include items not in your pantry"
-                )
-                recipePromptPantryStrictnessChip(
-                    .mostly,
-                    title: "Mostly pantry",
-                    icon: "leaf.fill",
-                    accessibilityLabel: "Mostly use ingredients from your pantry"
-                )
-                recipePromptPantryStrictnessChip(
-                    .only,
-                    title: "Pantry only",
-                    icon: "checkmark.seal.fill",
-                    accessibilityLabel: "Only use ingredients from your pantry"
-                )
-            }
-            if viewModel.ingredients.isEmpty {
-                Text("Your pantry is currently empty. Add ingredients to test the 'Mostly' or 'Only' options.")
-                    .font(.pantryCaption)
-                    .foregroundStyle(Color.white.opacity(0.62))
-                    .padding(.top, DesignTokens.spacingSM)
-            }
-        }
-    }
-
-    private var cuisinesPage: some View {
-        PantryGenerateSheetFormSection(title: nil, subtitle: "Pick one or more cuisines", showsTrailingDivider: false) {
-            VStack(spacing: 8) {
-                ForEach(RecipeGenerationFormOptionData.cuisinesOrderedForForms()) { option in
-                    OptionChip(
-                        option: option,
-                        isSelected: selectedCuisines.contains(option.id),
-                        style: .generateSheet,
-                        size: .large,
-                        isFullWidth: true
-                    ) {
-                        HapticFeedback.light()
-                        if option.id == "Any" {
-                            if selectedCuisines.contains("Any") {
-                                selectedCuisines.removeAll()
-                            } else {
-                                selectedCuisines = ["Any"]
-                            }
-                        } else {
-                            selectedCuisines.remove("Any")
-                            if selectedCuisines.contains(option.id) {
-                                selectedCuisines.remove(option.id)
-                            } else {
-                                selectedCuisines.insert(option.id)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var dietaryPage: some View {
-        PantryGenerateSheetFormSection(title: nil, subtitle: "Optional filters", showsTrailingDivider: false) {
-            VStack(spacing: 8) {
-                ForEach(RecipeGenerationFormOptionData.dietaryOptionsOrderedForForms()) { option in
-                    OptionChip(
-                        option: option,
-                        isSelected: selectedDietary.contains(option.id),
-                        style: .generateSheet,
-                        size: .large,
-                        isFullWidth: true
-                    ) {
-                        HapticFeedback.light()
-                        if selectedDietary.contains(option.id) {
-                            selectedDietary.remove(option.id)
-                        } else {
-                            selectedDietary.insert(option.id)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var specialRequestsPage: some View {
-        PantryGenerateSheetFormSection(
-            title: nil,
-            subtitle: "Optional — add constraints or style preferences",
-            showsTrailingDivider: false
-        ) {
-            VStack(alignment: .leading, spacing: DesignTokens.spacingSM) {
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.pantryBackground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.35), lineWidth: 1)
-                        )
-
-                    TextEditor(text: additionalPreferencesBinding)
-                        .frame(minHeight: 96)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 8)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.clear)
-                        .foregroundStyle(Color.pantryTextPrimary)
-                }
-                .frame(minHeight: 96)
-
-                HStack {
-                    Spacer()
-                    Text("\(generatedPrompt.count)/\(AppConfig.maxGeneratePromptLength)")
-                        .font(.pantryCaption)
-                        .foregroundStyle(isPromptValid ? Color.white.opacity(0.65) : Color(red: 1, green: 0.88, blue: 0.86))
-                }
-
-                Text("Try a premade prompt:")
-                    .font(.pantryCaption)
-                    .foregroundStyle(Color.white.opacity(0.62))
-
-                VStack(alignment: .leading, spacing: DesignTokens.spacingSM) {
-                    ForEach(RecipeGenerationFormOptionData.cannedSpecialRequests, id: \.self) { request in
-                        Button {
-                            applyCannedSpecialRequest(request)
-                        } label: {
-                            HStack {
-                                Text(request)
-                                    .font(.pantryBody)
-                                    .foregroundStyle(Color.white.opacity(0.92))
-                                    .multilineTextAlignment(.leading)
-                                    .lineLimit(3)
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.14))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if let errorMessage = promptErrorMessage {
-                    Text(errorMessage)
-                        .font(.pantryCaption)
-                        .foregroundStyle(Color(red: 1, green: 0.88, blue: 0.86))
-                }
-                
-                if viewModel.ingredients.count > 0 {
-                    Text("Using \(viewModel.ingredients.count) ingredient\(viewModel.ingredients.count == 1 ? "" : "s") · \(selectedPreferenceCount) preference\(selectedPreferenceCount == 1 ? "" : "s")")
-                        .font(.pantryCaption)
-                        .foregroundStyle(Color.pantryOnWhiteCardSecondaryText)
-                        .padding(.top, DesignTokens.spacingSM)
-                }
-            }
-        }
-    }
-}
-
-
-
-// Helper function to get icon for ingredient (uses shared emoji helper, falls back to system icon)
-func getIngredientIcon(for ingredientName: String) -> String {
-    // Try to get emoji from shared helper
-    let emoji = IngredientEmojiHelper.emojiForIngredientName(ingredientName)
-    
-    // If it's the default emoji (🥡), fall back to system icon
-    if emoji == "🥡" {
-        return "leaf.fill"
-    }
-    
-    return emoji
-}
-
-// MARK: - Pantry list rows (in-place editing)
-
-private struct ScanIngredientsPantryRow: View {
-    var body: some View {
-        HStack(alignment: .center, spacing: PantryIngredientListMetrics.rowHPadding) {
-            Image(systemName: "camera.fill")
-                .font(.pantryTitle3.weight(.medium))
-                .foregroundColor(.pantryPrimary)
-                .frame(width: PantryIngredientListMetrics.iconColumnWidth, alignment: .center)
-
-            VStack(alignment: .leading, spacing: PantryIngredientListMetrics.textVSpacing) {
-                Text("Scan ingredients")
-                    .font(.pantryBody)
-                    .fontWeight(.regular)
-                    .foregroundColor(.pantryTextSecondary)
-
-                Text("From a photo of your fridge or pantry")
-                    .font(.pantrySubheadline)
-                    .italic()
-                    .foregroundColor(.pantryTextSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 4)
-        }
-        .padding(.vertical, PantryIngredientListMetrics.rowVPadding)
-        .contentShape(Rectangle())
-    }
-}
-
 private enum IngredientInPlaceField: Hashable {
     case general, quantity
 }
@@ -1248,7 +774,24 @@ private struct IngredientInPlaceRow: View {
                         .focused($focusedField, equals: .quantity)
                         .submitLabel(.done)
                         .onSubmit { commitIfDirty() }
+                    if ingredient.useSoon {
+                        Text("Use Soon")
+                            .font(.pantryCaption2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.orange.opacity(0.2)))
+                            .foregroundStyle(Color.orange)
+                    }
                 }
+                Button {
+                    viewModel.setIngredientPinned(id: ingredient.id, pinned: !ingredient.pinned)
+                } label: {
+                    Image(systemName: ingredient.pinned ? "star.fill" : "star")
+                        .foregroundStyle(ingredient.pinned ? Color.pantryPrimary : Color.pantryTextSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(ingredient.pinned ? "Unpin ingredient" : "Use this first")
             }
 
             if let errorMessage = errorMessage {
@@ -1258,6 +801,15 @@ private struct IngredientInPlaceRow: View {
             }
         }
         .padding(.vertical, PantryIngredientListMetrics.rowVPadding)
+        .contextMenu {
+            Button("Use within 2 days") {
+                let date = Calendar.current.date(byAdding: .day, value: 2, to: Date())
+                viewModel.setIngredientExpiration(id: ingredient.id, date: date)
+            }
+            Button("Clear use-by date") {
+                viewModel.setIngredientExpiration(id: ingredient.id, date: nil)
+            }
+        }
         .onChange(of: ingredient) { _, new in
             guard focusedField == nil else { return }
             general = new.generalName

@@ -37,9 +37,30 @@ final class ReviewPromptService: ObservableObject {
         userDefaults.set(updatedCount, forKey: favoriteActionCountKey)
 
         if updatedCount >= favoriteActionThreshold {
-            userDefaults.set(true, forKey: hasRequestedReviewKey)
-            shouldRequestReview = true
+            requestReview()
         }
+    }
+
+    /// A finished cook is enough to ask for a review.
+    func registerCookingCompleted() {
+        guard !hasRequestedReview else { return }
+        requestReview()
+    }
+
+    /// The second Fresh Picks batch is enough to ask for a review.
+    func registerGenerationBatchViewed() {
+        guard !hasRequestedReview else { return }
+        let key = "Reciplease.ReviewPrompt.GenerationBatchCount"
+        let updated = userDefaults.integer(forKey: key) + 1
+        userDefaults.set(updated, forKey: key)
+        if updated >= 2 {
+            requestReview()
+        }
+    }
+
+    private func requestReview() {
+        userDefaults.set(true, forKey: hasRequestedReviewKey)
+        shouldRequestReview = true
     }
 
     func consumeReviewRequest() {

@@ -1,0 +1,32 @@
+# Bug- and hygiene-focused. Style rules that would churn legacy files stay off.
+# `swiftc` / `swift test` / `xcodebuild` are what catch type errors. SwiftLint does not.
+
+included:
+  - PantryPal
+  - PantryPalTests
+  - PantryPalUITests
+
+excluded:
+  - .build
+  - .cache
+  - DerivedData
+
+only_rules:
+  - duplicate_imports
+  - compiler_protocol_init
+  - dynamic_inline
+  - empty_enum_arguments
+  - fatal_error_message
+  - identical_operands
+  - overridden_super_call
+  - redundant_void_return
+  - unneeded_break_in_switch
+  - unused_closure_parameter
+  - unused_enumerated
+  - unused_optional_binding
+  - void_return
+  - weak_delegate
+
+analyzer_rules: []
+
+reporter: emoji

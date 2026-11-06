@@ -56,6 +56,12 @@ enum AppAnalytics {
         case generationPeriodReset = "generation_period_reset"
         case actionsSheetOpened = "actions_sheet_opened"
         case groceryListShared = "grocery_list_shared"
+        case firstRecipeGenerated = "first_recipe_generated"
+        case pitchSelected = "pitch_selected"
+        case pitchExpanded = "pitch_expanded"
+        case cookingStarted = "cooking_started"
+        case cookingCompleted = "cooking_completed"
+        case notificationOpened = "notification_opened"
     }
 
     static func log(_ event: Event, parameters: [String: Any]? = nil) {

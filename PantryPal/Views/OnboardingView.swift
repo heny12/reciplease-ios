@@ -19,6 +19,7 @@ struct OnboardingView: View {
     var onImportWebRecipe: () -> Void
     var onNewCookbook: () -> Void
     var onGenerateMealPlan: () -> Void
+    var onGenerateFirstDinner: () -> Void
     var onAddPlanToGroceryList: () -> Void
     /// Opens the paywall (e.g. from the Free tier onboarding step).
     var onUpgradeToPro: () -> Void
@@ -86,7 +87,7 @@ struct OnboardingView: View {
                             case 1: valuePropositionPage
                             case 2: pantryOnboardingPage
                             case 3: cuisineDietPage
-                            case 4: trialProPage
+                            case 4: firstDinnerPage
                             case 5: launchpadPage
                             default: valuePropositionPage
                             }
@@ -480,6 +481,23 @@ struct OnboardingView: View {
         .accessibilityLabel("\(n) weekly recipe tokens")
     }
 
+    private var firstDinnerPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignTokens.spacingMD) {
+                Text("Let's make dinner")
+                    .font(.pantryTitle2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.white)
+                Text("We'll use the staples and tastes you picked to suggest a few dinners. You can scan the fridge anytime.")
+                    .font(.pantryBody)
+                    .foregroundStyle(Color.white.opacity(0.92))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, DesignTokens.spacingLG)
+            .padding(.top, DesignTokens.spacingMD)
+        }
+    }
+
     private var trialProPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -556,6 +574,9 @@ struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 VStack(spacing: 10) {
+                    launchpadButton(title: "Generate Recipe", systemImage: "wand.and.stars") {
+                        completeFromLaunchpad { onGenerateFirstDinner() }
+                    }
                     launchpadButton(title: "Scan Ingredients", systemImage: "camera.viewfinder") {
                         completeFromLaunchpad { onScanIngredients() }
                     }
@@ -613,28 +634,6 @@ struct OnboardingView: View {
 
     private var bottomFooter: some View {
         VStack(spacing: 0) {
-            if currentPage == 4 {
-                Button {
-                    HapticFeedback.light()
-                    onUpgradeToPro()
-                } label: {
-                    Text("Upgrade to Pro")
-                        .font(.pantryHeadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: DesignTokens.buttonHeightLarge)
-                        .background(
-                            RoundedRectangle(cornerRadius: DesignTokens.radiusLarge, style: .continuous)
-                                .stroke(Color.white.opacity(0.92), lineWidth: 2)
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, DesignTokens.spacingLG)
-                .padding(.top, DesignTokens.spacingMD)
-                .accessibilityHint("Opens subscription options")
-            }
-
             Button {
                 HapticFeedback.medium()
                 handlePrimaryFooterTap()
@@ -660,6 +659,8 @@ struct OnboardingView: View {
         switch currentPage {
         case 0:
             return "Let's Get Cooking!"
+        case 4:
+            return "Show me dinner ideas"
         case totalPages - 1:
             return "Done"
         default:
@@ -682,7 +683,7 @@ struct OnboardingView: View {
         case 3:
             withAnimation(.easeInOut(duration: 0.25)) { currentPage = 4 }
         case 4:
-            withAnimation(.easeInOut(duration: 0.25)) { currentPage = 5 }
+            completeFromLaunchpad { onGenerateFirstDinner() }
         case 5:
             completeFromLaunchpad(nil)
         default:
@@ -732,6 +733,7 @@ struct OnboardingView: View {
         onImportWebRecipe: {},
         onNewCookbook: {},
         onGenerateMealPlan: {},
+        onGenerateFirstDinner: {},
         onAddPlanToGroceryList: {},
         onUpgradeToPro: {}
     )

@@ -1,0 +1,12 @@
+---
+description: Run semantic verification before finishing a change
+alwaysApply: true
+---
+
+# Verification
+
+Run `./scripts/verify.sh` from the repo root before finishing any change, and fix what it reports.
+
+`swiftc -parse` only checks syntax. It does not typecheck. It missed the `PersistenceService` `CodingKeys` errors because those files parsed and the old Swift package never compiled `PersistenceService`. Name resolution, `Codable` synthesis, actor isolation, and SwiftUI initializers show up in `swift build`, `swift test`, or `xcodebuild`, not in `-parse`.
+
+The script runs `swift build`, `swift test`, SwiftLint, `swiftc -parse` for files excluded from `Package.swift`, the `project.pbxproj` integrity check, and `xcodebuild` when it is installed. On Linux, say clearly that the iOS SDK build was skipped.

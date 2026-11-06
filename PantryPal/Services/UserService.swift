@@ -6,7 +6,12 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(FirebaseAppCheck)
 import FirebaseAppCheck
+#endif
 
 /// Service for fetching and managing user data from the backend
 class UserService {
@@ -77,7 +82,7 @@ class UserService {
         let backendId = trimmedId.lowercased()
         
         guard !backendId.isEmpty else {
-            throw APIError.clientError(400, "INVALID_REQUEST", "Missing recipe id")
+            throw APIError.clientError(400, "INVALID_REQUEST", "Missing recipe id", nil)
         }
         
         guard let url = URL(string: baseURL + recipeEndpoint) else {
@@ -95,14 +100,7 @@ class UserService {
         let deviceID = DeviceIDManager.shared.deviceID
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
         
-        // Add App Check token
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-            print("🛡️ [UserService] App Check token attached to recipe request")
-        } catch {
-            print("⚠️ [UserService] Failed to get App Check token for recipe: \(error.localizedDescription)")
-        }
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[UserService] recipe")
         
         let body: [String: Any] = [
             "id": backendId
@@ -140,12 +138,12 @@ class UserService {
             
             if (500...599).contains(httpResponse.statusCode) {
                 print("🔴 [UserService] Recipe server error (\(httpResponse.statusCode)), code=\(errorCode ?? "none"), body=\(responseBody ?? "none")")
-                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else if (400...499).contains(httpResponse.statusCode) {
                 print("🟠 [UserService] Recipe client error (\(httpResponse.statusCode)), code=\(errorCode ?? "none"), body=\(responseBody ?? "none")")
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else {
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             }
         }
         
@@ -178,12 +176,7 @@ class UserService {
         let deviceID = DeviceIDManager.shared.deviceID
         request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
 
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-        } catch {
-            print("⚠️ [UserService] Failed to get App Check token for Instacart request: \(error.localizedDescription)")
-        }
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[UserService] Instacart")
 
         let lineItems = items.map { item -> [String: String] in
             var dict: [String: String] = ["name": item.name]
@@ -215,9 +208,9 @@ class UserService {
                 errorMessage = parsed.message
             }
             if (500...599).contains(httpResponse.statusCode) {
-                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.serverError(httpResponse.statusCode, errorCode, errorMessage, nil)
             } else {
-                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage)
+                throw APIError.clientError(httpResponse.statusCode, errorCode, errorMessage, nil)
             }
         }
 
@@ -261,14 +254,7 @@ class UserService {
         // Add device ID header for consistency with RecipeAPIService
         request.setValue(deviceId, forHTTPHeaderField: "X-Device-ID")
         
-        // Add App Check token
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-            print("🛡️ [UserService] App Check token attached")
-        } catch {
-            print("⚠️ [UserService] Failed to get App Check token: \(error.localizedDescription)")
-        }
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[UserService]")
         
         request.httpBody = jsonData
         request.timeoutInterval = 10.0
@@ -333,14 +319,7 @@ class UserService {
         // Add device ID header for consistency with RecipeAPIService
         request.setValue(deviceId, forHTTPHeaderField: "X-Device-ID")
         
-        // Add App Check token
-        do {
-            let tokenResult = try await AppCheck.appCheck().token(forcingRefresh: false)
-            request.setValue(tokenResult.token, forHTTPHeaderField: "X-Firebase-AppCheck")
-            print("🛡️ [UserService] App Check token attached to feedback request")
-        } catch {
-            print("⚠️ [UserService] Failed to get App Check token for feedback: \(error.localizedDescription)")
-        }
+        await AppCheckTokenProvider.attach(to: &request, logPrefix: "[UserService] feedback")
         
         request.httpBody = jsonData
         request.timeoutInterval = 10.0

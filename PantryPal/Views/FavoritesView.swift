@@ -16,6 +16,7 @@ struct CookbooksView: View {
     @State private var showingDeleteCookbookConfirmation = false
     /// Drives hidden `NavigationLink` to a cookbook after generate / scan tab switch (`openCookbookDetailId`).
     @State private var pushingCookbookDetailId: UUID?
+    @State private var showFreshPicks = false
 
     var body: some View {
         let _ = revenueCatService.isProMember
@@ -23,8 +24,12 @@ struct CookbooksView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     HStack {
+                        NavigationLink(destination: FreshPicksView(viewModel: viewModel)) {
+                            CookbooksNavPillLabel(title: "Fresh Picks", tint: .pantryPrimary)
+                        }
+                        .buttonStyle(.plain)
                         NavigationLink(destination: CookbooksAllRecipesListView(viewModel: viewModel)) {
-                            CookbooksNavPillLabel(title: "Recipe View", tint: .pantrySecondary)
+                            CookbooksNavPillLabel(title: "All Recipes", tint: .pantrySecondary)
                         }
                         .buttonStyle(.plain)
                         Spacer(minLength: 0)
@@ -57,7 +62,7 @@ struct CookbooksView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            if !cookbook.isDefaultFavorites {
+                            if !cookbook.isDefaultFavorites && !cookbook.isInbox && !cookbook.isDefaultUncategorized {
                                 Button("Delete cookbook", role: .destructive) {
                                     cookbookToDelete = cookbook
                                     showingDeleteCookbookConfirmation = true
@@ -122,12 +127,27 @@ struct CookbooksView: View {
                 EmptyView()
             }
             .hidden()
+
+            NavigationLink(destination: FreshPicksView(viewModel: viewModel), isActive: $showFreshPicks) {
+                EmptyView()
+            }
+            .hidden()
         }
         .background(Color.pantryBackground)
         .onAppear {
             viewModel.reloadFavoritedRecipes()
             if let id = viewModel.openCookbookDetailId {
                 pushingCookbookDetailId = id
+            }
+            if viewModel.openFreshPicks {
+                showFreshPicks = true
+                viewModel.openFreshPicks = false
+            }
+        }
+        .onChange(of: viewModel.openFreshPicks) { _, open in
+            if open {
+                showFreshPicks = true
+                viewModel.openFreshPicks = false
             }
         }
         .onChange(of: viewModel.openCookbookDetailId) { _, newId in
@@ -505,6 +525,8 @@ private struct CookbooksAllRecipesListView: View {
     @State private var recipeIdPendingCookbookPick: UUID?
     @State private var singleRecipeForGrocery: Recipe?
     @State private var recipeForMealPlanPicker: Recipe?
+    @State private var smartFilter: SmartRecipeFilter?
+    @State private var librarySort: RecipeLibrarySort = .newest
 
     private var allLibraryRecipes: [Recipe] {
         var seen = Set<UUID>()
@@ -514,10 +536,8 @@ private struct CookbooksAllRecipesListView: View {
     }
 
     private var filteredRecipes: [Recipe] {
-        allLibraryRecipes.filter { recipe in
-            let matchesSearch = searchText.isEmpty
-                || recipe.name.localizedCaseInsensitiveContains(searchText)
-                || recipe.description.localizedCaseInsensitiveContains(searchText)
+        let narrowed = allLibraryRecipes.filter { recipe in
+            let matchesSearch = RecipeLibraryQuery.matchesSearch(recipe, query: searchText)
             let totalTime = cookbookLibraryRecipeTotalTime(for: recipe)
             let matchesTime = timeFilter.matches(totalTime: totalTime)
             let matchesIngredients = ingredientsFilter.matches(count: recipe.ingredients.count)
@@ -525,12 +545,14 @@ private struct CookbooksAllRecipesListView: View {
             let matchScore = viewModel.pantryMatchScore(for: recipe.id)
             let matchesPantry = pantryMatchFilter.matches(score: matchScore)
             let matchesSource = sourceTypeFilter.matches(category: recipe.sourceCategory)
-            return matchesSearch && matchesTime && matchesIngredients && matchesDifficulty && matchesPantry && matchesSource
+            let matchesSmart = RecipeLibraryQuery.matches(recipe: recipe, smart: smartFilter, pantryScore: matchScore)
+            return matchesSearch && matchesTime && matchesIngredients && matchesDifficulty && matchesPantry && matchesSource && matchesSmart
         }
+        return RecipeLibraryQuery.sorted(narrowed, by: librarySort, pantryScores: viewModel.pantryMatchScores)
     }
 
     private var hasActiveFilters: Bool {
-        timeFilter != .all || ingredientsFilter != .all || difficultyFilter != .all || pantryMatchFilter != .all || sourceTypeFilter != .all
+        timeFilter != .all || ingredientsFilter != .all || difficultyFilter != .all || pantryMatchFilter != .all || sourceTypeFilter != .all || smartFilter != nil
     }
 
     private var navigationTitleText: String {
@@ -599,6 +621,8 @@ private struct CookbooksAllRecipesListView: View {
             .background(Color.pantrySurface)
             .cornerRadius(12)
 
+            smartAndSortControls
+
             if showFilters {
                 VStack(alignment: .leading, spacing: 6) {
                     FilterRow(title: "Time", icon: "clock.fill", options: TimeFilter.allCases, selected: $timeFilter)
@@ -633,6 +657,39 @@ private struct CookbooksAllRecipesListView: View {
                     Spacer()
                 }
                 .padding(.bottom, 4)
+            }
+        }
+    }
+
+    private var smartAndSortControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(SmartRecipeFilter.allCases) { filter in
+                        Button {
+                            smartFilter = smartFilter == filter ? nil : filter
+                        } label: {
+                            Text(filter.rawValue)
+                                .font(.pantryCaption)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(smartFilter == filter ? Color.pantryPrimary : Color.pantrySurface))
+                                .foregroundStyle(smartFilter == filter ? Color.white : Color.pantryTextPrimary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            Menu {
+                ForEach(RecipeLibrarySort.allCases) { sort in
+                    Button(sort.rawValue) { librarySort = sort }
+                }
+            } label: {
+                Label("Sort: \(librarySort.rawValue)", systemImage: "arrow.up.arrow.down")
+                    .font(.pantryCaption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.pantryPrimary)
             }
         }
     }
@@ -954,6 +1011,8 @@ private struct CookbookDetailView: View {
     @State private var recipeIdPendingCookbookPick: UUID?
     @State private var singleRecipeForGrocery: Recipe?
     @State private var recipeForMealPlanPicker: Recipe?
+    @State private var smartFilter: SmartRecipeFilter?
+    @State private var librarySort: RecipeLibrarySort = .newest
 
     private var cookbook: Cookbook? {
         viewModel.cookbooks.first(where: { $0.id == cookbookId })
@@ -964,10 +1023,8 @@ private struct CookbookDetailView: View {
     }
 
     private var filteredRecipes: [Recipe] {
-        recipes.filter { recipe in
-            let matchesSearch = searchText.isEmpty
-                || recipe.name.localizedCaseInsensitiveContains(searchText)
-                || recipe.description.localizedCaseInsensitiveContains(searchText)
+        let narrowed = recipes.filter { recipe in
+            let matchesSearch = RecipeLibraryQuery.matchesSearch(recipe, query: searchText)
             let totalTime = cookbookRecipeTotalTime(for: recipe)
             let matchesTime = timeFilter.matches(totalTime: totalTime)
             let matchesIngredients = ingredientsFilter.matches(count: recipe.ingredients.count)
@@ -975,12 +1032,47 @@ private struct CookbookDetailView: View {
             let matchScore = viewModel.pantryMatchScore(for: recipe.id)
             let matchesPantry = pantryMatchFilter.matches(score: matchScore)
             let matchesSource = sourceTypeFilter.matches(category: recipe.sourceCategory)
-            return matchesSearch && matchesTime && matchesIngredients && matchesDifficulty && matchesPantry && matchesSource
+            let matchesSmart = RecipeLibraryQuery.matches(recipe: recipe, smart: smartFilter, pantryScore: matchScore)
+            return matchesSearch && matchesTime && matchesIngredients && matchesDifficulty && matchesPantry && matchesSource && matchesSmart
         }
+        return RecipeLibraryQuery.sorted(narrowed, by: librarySort, pantryScores: viewModel.pantryMatchScores)
     }
 
     private var hasActiveFilters: Bool {
-        timeFilter != .all || ingredientsFilter != .all || difficultyFilter != .all || pantryMatchFilter != .all || sourceTypeFilter != .all
+        timeFilter != .all || ingredientsFilter != .all || difficultyFilter != .all || pantryMatchFilter != .all || sourceTypeFilter != .all || smartFilter != nil
+    }
+
+    private var cookbookSmartAndSort: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(SmartRecipeFilter.allCases) { filter in
+                        Button {
+                            smartFilter = smartFilter == filter ? nil : filter
+                        } label: {
+                            Text(filter.rawValue)
+                                .font(.pantryCaption)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(smartFilter == filter ? Color.pantryPrimary : Color.pantrySurface))
+                                .foregroundStyle(smartFilter == filter ? Color.white : Color.pantryTextPrimary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            Menu {
+                ForEach(RecipeLibrarySort.allCases) { sort in
+                    Button(sort.rawValue) { librarySort = sort }
+                }
+            } label: {
+                Label("Sort: \(librarySort.rawValue)", systemImage: "arrow.up.arrow.down")
+                    .font(.pantryCaption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.pantryPrimary)
+            }
+        }
     }
 
     private var cookbookNavigationTitle: String {
@@ -1063,6 +1155,8 @@ private struct CookbookDetailView: View {
             .padding(.vertical, 10)
             .background(Color.pantrySurface)
             .cornerRadius(12)
+
+            cookbookSmartAndSort
 
             if showFilters {
                 VStack(alignment: .leading, spacing: 6) {

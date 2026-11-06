@@ -7,6 +7,9 @@
 
 import Foundation
 import Combine
+#if os(iOS)
+import UIKit
+#endif
 
 @MainActor
 final class QuickActionService: ObservableObject {
@@ -23,6 +26,41 @@ final class QuickActionService: ObservableObject {
     @Published private(set) var pendingAction: Action?
 
     private init() {}
+
+    func registerHomeScreenShortcuts() {
+        #if os(iOS)
+        UIApplication.shared.shortcutItems = [
+            UIApplicationShortcutItem(
+                type: Action.scanIngredients.rawValue,
+                localizedTitle: "Scan Pantry",
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "camera.viewfinder"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: Action.generateMealPlan.rawValue,
+                localizedTitle: "Generate Meal Plan",
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "wand.and.stars"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: Action.scanCookbookRecipe.rawValue,
+                localizedTitle: "Scan a Recipe",
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "text.viewfinder"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: Action.leaveFeedback.rawValue,
+                localizedTitle: "Leave Feedback",
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "envelope"),
+                userInfo: nil
+            )
+        ]
+        #endif
+    }
 
     func queue(actionType: String) {
         guard let action = Action(rawValue: actionType) else { return }

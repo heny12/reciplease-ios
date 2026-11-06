@@ -82,6 +82,7 @@ struct Cookbook: Identifiable, Hashable {
     let createdAt: Date
     var isDefaultFavorites: Bool
     var isDefaultUncategorized: Bool
+    var isInbox: Bool = false
 }
 
 struct PantryMatchBreakdown {
@@ -134,6 +135,15 @@ class PantryViewModel: ObservableObject {
     /// Set from Cookbooks recipe library pills (or elsewhere); ContentView presents generate sheet after pantry + credit checks.
     @Published var shouldOpenRecipeGeneratePrompt = false
     @Published var shouldNavigateToCookbooks: UUID? = nil
+    @Published var generationSessions: [GenerationSession] = []
+    @Published var activeGenerationSessionId: String?
+    @Published var shouldNavigateToFreshPicks = false
+    @Published var openFreshPicks = false
+    @Published var isExpandingPitch = false
+    @Published var expandingPitchTitle: String?
+    @Published var isDealingMorePitches = false
+    @Published var showEmptyPantryGuidance = false
+    @Published var shouldOfferProUpgrade = false
     /// When set, `CookbooksView` pushes `CookbookDetailView` for this id (e.g. after generating recipes). Cleared when the user pops. Skipped when `deepLinkedRecipeIdToOpen` is set (recipe detail takes precedence).
     @Published var openCookbookDetailId: UUID? = nil
     /// After adding a recipe to the meal plan from recipe detail (or elsewhere), switch to the Plan tab.
@@ -164,7 +174,7 @@ class PantryViewModel: ObservableObject {
         if RevenueCatService.shared.isProMember {
             return true
         }
-        let userCreatedCount = cookbooks.filter { !$0.isDefaultFavorites && !$0.isDefaultUncategorized }.count
+        let userCreatedCount = cookbooks.filter { !$0.isDefaultFavorites && !$0.isDefaultUncategorized && !$0.isInbox }.count
         return userCreatedCount < AppConfig.maxCookbooks
     }
 
@@ -262,42 +272,15 @@ class PantryViewModel: ObservableObject {
         }
     }
 
-    private let pantryStaples: Set<String> = [
-        "salt", "pepper", "black pepper", "oil", "olive oil", "vegetable oil",
-        "canola oil", "cooking oil", "butter", "water", "sugar", "flour", "all-purpose flour",
-        "baking powder", "baking soda", "vanilla", "vanilla extract", "garlic powder",
-        "onion powder", "paprika", "cinnamon", "cumin", "oregano", "basil", "thyme",
-        "rosemary", "bay leaf", "bay leaves", "vinegar", "soy sauce", "honey", "maple syrup",
-        "mustard", "ketchup", "mayonnaise", "hot sauce", "worcestershire sauce",
-        "chili powder", "brown sugar", "white vinegar"
-    ]
-
-    private func normalizedIngredientName(_ name: String) -> String {
-        name
-            .lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private func computePantryMatchBreakdown(for recipe: Recipe, pantrySnapshot: [Ingredient]) -> PantryMatchBreakdown {
-        let rows = recipe.ingredients.filter { !normalizedIngredientName($0.name).isEmpty }
-        let totalCount = rows.count
-        guard totalCount > 0 else {
-            return PantryMatchBreakdown(matchedIngredientCount: 0, totalIngredientCount: 0, score: 0)
-        }
-
-        let matchedCount = rows.reduce(into: 0) { count, ing in
-            if recipeIngredientInUserPantry(ing.name, pantryItems: pantrySnapshot)
-                || recipeIngredientIsPantryStaple(ing.name) {
-                count += 1
-            }
-        }
-
-        let rawScore = Double(matchedCount) / Double(totalCount)
-        let clampedScore = min(max(rawScore, 0), 1)
+        let result = PantryMatchCalculator.breakdown(
+            ingredientNames: recipe.ingredients.map(\.name),
+            pantryNames: pantrySnapshot.map(\.generalName)
+        )
         return PantryMatchBreakdown(
-            matchedIngredientCount: matchedCount,
-            totalIngredientCount: totalCount,
-            score: clampedScore
+            matchedIngredientCount: result.matched,
+            totalIngredientCount: result.total,
+            score: result.score
         )
     }
 
@@ -395,7 +378,7 @@ class PantryViewModel: ObservableObject {
 
     func plannedRecipe(dayKey: String, slot: MealPlanSlot) -> Recipe? {
         guard let id = mealPlanByDay[dayKey]?.recipeId(for: slot) else { return nil }
-        return makeRecipeLookup(recipes + favoritedRecipes)[id]
+        return recipe(id: id)
     }
 
     /// Meal slots with a recipe from start of today onward (Plan tab subtitle / badges).
@@ -424,56 +407,23 @@ class PantryViewModel: ObservableObject {
 
     /// Pantry list only (not staples); aligned with recipe detail “in pantry” matching.
     func recipeIngredientInUserPantry(_ ingredientName: String) -> Bool {
-        recipeIngredientInUserPantry(ingredientName, pantryItems: ingredients)
-    }
-
-    /// Same as ``recipeIngredientInUserPantry(_:)`` but uses a fixed pantry snapshot (e.g. background score recompute).
-    private func recipeIngredientInUserPantry(_ ingredientName: String, pantryItems: [Ingredient]) -> Bool {
-        let normalizedName = ingredientName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedName.isEmpty else { return false }
-        let words = normalizedName.components(separatedBy: " ")
-
-        for pantryItem in pantryItems {
-            let pantryName = pantryItem.generalName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !pantryName.isEmpty else { continue }
-
-            if normalizedName == pantryName {
-                return true
-            }
-
-            if normalizedName.contains(pantryName) || pantryName.contains(normalizedName) {
-                return true
-            }
-
-            let pantryWords = pantryName.components(separatedBy: " ")
-            for pantryWord in pantryWords {
-                if pantryWord.count > 3 && normalizedName.contains(pantryWord) {
-                    return true
-                }
-            }
-            for word in words {
-                if word.count > 3 && pantryName.contains(word) {
-                    return true
-                }
-            }
-        }
-
-        return false
+        PantryMatchCalculator.isInPantry(ingredientName, pantryNames: ingredients.map(\.generalName))
     }
 
     /// Common pantry staples (salt, oil, …) — same heuristic as recipe detail.
     func recipeIngredientIsPantryStaple(_ ingredientName: String) -> Bool {
-        let normalizedName = normalizedIngredientName(ingredientName)
-        guard !normalizedName.isEmpty else { return false }
-        if pantryStaples.contains(normalizedName) {
-            return true
-        }
-        for word in normalizedName.components(separatedBy: " ") where !word.isEmpty {
-            if pantryStaples.contains(word) {
-                return true
+        PantryMatchCalculator.isStaple(ingredientName)
+    }
+
+    func recipe(id: UUID) -> Recipe? {
+        if let recipe = recipes.first(where: { $0.id == id }) { return recipe }
+        if let recipe = favoritedRecipes.first(where: { $0.id == id }) { return recipe }
+        for session in generationSessions {
+            if let recipe = session.expandedRecipes.values.first(where: { $0.id == id }) {
+                return recipe
             }
         }
-        return false
+        return nil
     }
 
     @MainActor
@@ -517,7 +467,7 @@ class PantryViewModel: ObservableObject {
     
     /// Helper function to update a recipe in both lists if it exists
     @MainActor
-    private func updateRecipeInBothLists(recipeId: UUID, updateClosure: (Recipe) -> Recipe) {
+    func updateRecipeInBothLists(recipeId: UUID, updateClosure: (Recipe) -> Recipe) {
         var updated = false
         
         // Update in recipes list
@@ -529,13 +479,26 @@ class PantryViewModel: ObservableObject {
         }
         
         // Update in favoritedRecipes list
-        if let index = favoritedRecipes.firstIndex(where: { $0.id == recipeId }) {
+if let index = favoritedRecipes.firstIndex(where: { $0.id == recipeId }) {
             var updatedFavoritedRecipes = favoritedRecipes
             updatedFavoritedRecipes[index] = updateClosure(favoritedRecipes[index])
             favoritedRecipes = updatedFavoritedRecipes
             updated = true
         }
-        
+
+        for index in generationSessions.indices {
+            var session = generationSessions[index]
+            var changed = false
+            for (key, recipe) in session.expandedRecipes where recipe.id == recipeId {
+                session.expandedRecipes[key] = updateClosure(recipe)
+                changed = true
+            }
+            if changed {
+                generationSessions[index] = session
+                updated = true
+            }
+        }
+
         if updated {
             saveData()
         }
@@ -553,21 +516,7 @@ class PantryViewModel: ObservableObject {
                 return recipe
             }
             updated = true
-            return Recipe(
-                id: recipe.id,
-                name: recipe.name,
-                description: recipe.description,
-                ingredients: recipe.ingredients,
-                steps: recipe.steps,
-                prepTimeMinutes: recipe.prepTimeMinutes,
-                cookTimeMinutes: recipe.cookTimeMinutes,
-                servings: recipe.servings,
-                difficulty: recipe.difficulty,
-                imageURL: recipe.imageURL,
-                isGeneratingImage: isGenerating,
-                tips: recipe.tips,
-                source: recipe.source
-            )
+            return recipe.withImage(url: recipe.imageURL, generating: isGenerating)
         }
 
         let updatedFavoritedRecipes = favoritedRecipes.map { recipe -> Recipe in
@@ -575,21 +524,7 @@ class PantryViewModel: ObservableObject {
                 return recipe
             }
             updated = true
-            return Recipe(
-                id: recipe.id,
-                name: recipe.name,
-                description: recipe.description,
-                ingredients: recipe.ingredients,
-                steps: recipe.steps,
-                prepTimeMinutes: recipe.prepTimeMinutes,
-                cookTimeMinutes: recipe.cookTimeMinutes,
-                servings: recipe.servings,
-                difficulty: recipe.difficulty,
-                imageURL: recipe.imageURL,
-                isGeneratingImage: isGenerating,
-                tips: recipe.tips,
-                source: recipe.source
-            )
+            return recipe.withImage(url: recipe.imageURL, generating: isGenerating)
         }
 
         guard updated else { return }
@@ -643,23 +578,7 @@ class PantryViewModel: ObservableObject {
     func reloadRecipes() {
         let savedData = persistenceService.load()
         let bookmarkedIds = Set(savedData.cookbooks.flatMap(\.recipeIds))
-        recipes = savedData.recipes.map { recipe in
-            Recipe(
-                id: recipe.id,
-                name: recipe.name,
-                description: recipe.description,
-                ingredients: recipe.ingredients,
-                steps: recipe.steps,
-                prepTimeMinutes: recipe.prepTimeMinutes,
-                cookTimeMinutes: recipe.cookTimeMinutes,
-                servings: recipe.servings,
-                difficulty: recipe.difficulty,
-                imageURL: recipe.imageURL,
-                isGeneratingImage: false,
-                tips: recipe.tips,
-                source: recipe.source
-            )
-        }.filter { !bookmarkedIds.contains($0.id) }
+        recipes = savedData.recipes.map(resetLoadingState).filter { !bookmarkedIds.contains($0.id) }
         trimRecipesTabToLimitIfNeeded()
         print("🔄 Reloaded \(recipes.count) recipes from storage (excluding \(bookmarkedIds.count) bookmarked)")
     }
@@ -675,29 +594,14 @@ class PantryViewModel: ObservableObject {
                 recipeIds: $0.recipeIds,
                 createdAt: $0.createdAt,
                 isDefaultFavorites: $0.isDefaultFavorites,
-                isDefaultUncategorized: $0.isDefaultUncategorized
+                isDefaultUncategorized: $0.isDefaultUncategorized,
+                isInbox: $0.isInbox
             )
         })
         favoriteRecipeIds = Array(Set(cookbooks.flatMap(\.recipeIds)))
 
         let lookup = makeRecipeLookup(savedData.recipes + savedData.favoritedRecipes)
-        favoritedRecipes = favoriteRecipeIds.compactMap { lookup[$0] }.map { recipe in
-            Recipe(
-                id: recipe.id,
-                name: recipe.name,
-                description: recipe.description,
-                ingredients: recipe.ingredients,
-                steps: recipe.steps,
-                prepTimeMinutes: recipe.prepTimeMinutes,
-                cookTimeMinutes: recipe.cookTimeMinutes,
-                servings: recipe.servings,
-                difficulty: recipe.difficulty,
-                imageURL: recipe.imageURL,
-                isGeneratingImage: false,
-                tips: recipe.tips,
-                source: recipe.source
-            )
-        }
+        favoritedRecipes = favoriteRecipeIds.compactMap { lookup[$0] }.map(resetLoadingState)
         print("🔄 Reloaded \(favoritedRecipes.count) bookmarked recipes from storage")
     }
     
@@ -770,8 +674,8 @@ class PantryViewModel: ObservableObject {
         guard let cookbookIndex = cookbooks.firstIndex(where: { $0.id == cookbookId }) else { return false }
 
         let cookbook = cookbooks[cookbookIndex]
-        guard !cookbook.isDefaultFavorites else {
-            cookbookValidationMessage = "The Favorites cookbook cannot be deleted."
+        guard !cookbook.isDefaultFavorites, !cookbook.isInbox, !cookbook.isDefaultUncategorized else {
+            cookbookValidationMessage = "This cookbook is part of your library and cannot be deleted."
             return false
         }
 
@@ -832,7 +736,7 @@ class PantryViewModel: ObservableObject {
     }
     
     private let gcsService = GCSUploadService.shared
-    private let apiService = RecipeAPIService.shared
+    let apiService = RecipeAPIService.shared
     private let persistenceService = PersistenceService.shared
     private let reviewPromptService = ReviewPromptService.shared
     private var cancellables = Set<AnyCancellable>()
@@ -1172,104 +1076,12 @@ class PantryViewModel: ObservableObject {
         }
     }
     
-    /// Generates recipes from current ingredients
+    /// Generates tonight's menu. Empty pantries surface guidance instead of returning silently.
     func generateRecipes(prompt: String? = nil, strictness: MealPlanStrictness? = nil) async {
-        guard !ingredients.isEmpty else { return }
-        
-        // Validate prompt length if provided
-        if let prompt = prompt, !prompt.isEmpty {
-            guard prompt.count <= AppConfig.maxGeneratePromptLength else {
-                await MainActor.run {
-                    errorMessage = ValidationError.generatePromptTooLong(maxLength: AppConfig.maxGeneratePromptLength).localizedDescription
-                }
-                return
-            }
-        }
-        
-        let canGenerate = await MainActor.run {
-            GenerationCreditsManager.shared.refreshPeriodsAndUsage()
-            if GenerationCreditsManager.shared.canConsumeGenerationCredit() {
-                return true
-            }
-            GenerationCreditsManager.shared.presentGenerationLimitSheet()
-            return false
-        }
-        
-        guard canGenerate else { return }
-        
-        await MainActor.run {
-            isGeneratingRecipes = true
-            errorMessage = nil
-        }
-        
-        defer {
-            Task { @MainActor in
-                isGeneratingRecipes = false
-            }
-        }
-        
-        do {
-            var generatedRecipes = try await apiService.generateRecipes(
-                ingredients: ingredients,
-                prompt: prompt,
-                strictness: strictness
-            )
-            await MainActor.run {
-                if generatedRecipes.isEmpty {
-                    showNoRecipesAlert = true
-                } else {
-                    // Add new recipes to the front of the existing list
-                    recipes = generatedRecipes + recipes
-                    print("📝 Added \(generatedRecipes.count) new recipes to the front (total: \(recipes.count), favorited recipes preserved separately: \(favoritedRecipes.count))")
-                    
-                    attachRecipeIdsToUncategorized(generatedRecipes.map(\.id))
-                    shouldNavigateToCookbooks = uncategorizedCookbookId
-                    
-                    // Record usage after successful generation
-                    usageTracker.recordRecipeGeneration()
-                    GenerationCreditsManager.shared.consumeGenerationCredit()
-                    
-                    // Log analytics event
-                    var genParams: [String: Any] = [
-                        "recipe_count": generatedRecipes.count,
-                        "ingredient_count": ingredients.count,
-                        "has_prompt": prompt != nil && !prompt!.isEmpty
-                    ]
-                    if let strictness {
-                        genParams["strictness"] = strictness.rawValue
-                    }
-                    AppAnalytics.log(.recipesGenerated, parameters: genParams)
-                    
-                    // Preload all recipe images in background
-                    let imageURLs = generatedRecipes.compactMap { $0.imageURL }
-                    ImagePreloadService.shared.preloadImages(for: imageURLs)
-
-                    // Generate images for all newly generated recipes that still need one.
-                    let recipeIdsNeedingImages = generatedRecipes
-                        .filter { $0.imageURL == nil }
-                        .map(\.id)
-
-                    if recipeIdsNeedingImages.isEmpty {
-                        print("⚠️ No generated recipes need image generation")
-                    } else {
-                        Task {
-                            await generateImagesForRecipesInBackground(recipeIds: recipeIdsNeedingImages)
-                        }
-                    }
-                }
-            }
-        } catch let error as APIError {
-            await MainActor.run {
-                // Use the user-friendly error message from APIError
-                self.errorMessage = error.localizedDescription
-                print("❌ Error in generateRecipes: \(error.localizedDescription)")
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = "Failed to generate recipes. Please try again."
-                print("❌ Unexpected error in generateRecipes: \(error)")
-            }
-        }
+        var draft = TonightMenuDraft()
+        draft.strictness = strictness ?? .any
+        draft.customRequest = prompt ?? ""
+        await generateTonightMenu(draft)
     }
 
     /// Calls meal-plan API, adds recipes to Uncategorized, assigns recipes to selected plan slots in order, consumes credits (up to remaining).
@@ -1346,12 +1158,7 @@ class PantryViewModel: ObservableObject {
                 let imageURLs = allRecipes.compactMap(\.imageURL)
                 ImagePreloadService.shared.preloadImages(for: imageURLs)
 
-                let recipeIdsNeedingImages = allRecipes.filter { $0.imageURL == nil }.map(\.id)
-                if !recipeIdsNeedingImages.isEmpty {
-                    Task {
-                        await generateImagesForRecipesInBackground(recipeIds: recipeIdsNeedingImages)
-                    }
-                }
+                // Hero photos are requested when a recipe is opened or saved, not for the whole batch.
             }
         } catch let error as APIError {
             await MainActor.run {
@@ -1427,43 +1234,26 @@ class PantryViewModel: ObservableObject {
             print("✅ [DeepLink] Fetched recipe from API: \(fetched.name) (local id: \(fetched.id))")
             
             await MainActor.run {
-                // Try to find an existing recipe that matches this one (by name + description)
-                // so we don't keep inserting duplicates every time the deep link is opened.
-                let recipeIdToOpen: UUID
-                if let existingIndex = self.recipes.firstIndex(where: {
-                    $0.name == fetched.name && $0.description == fetched.description
-                }) {
-                    let existing = self.recipes[existingIndex]
-                    let updated = Recipe(
-                        id: existing.id,
-                        name: fetched.name,
-                        description: fetched.description,
-                        ingredients: fetched.ingredients,
-                        steps: fetched.steps,
-                        prepTimeMinutes: fetched.prepTimeMinutes,
-                        cookTimeMinutes: fetched.cookTimeMinutes,
-                        servings: fetched.servings,
-                        difficulty: fetched.difficulty,
-                        imageURL: fetched.imageURL,
-                        isGeneratingImage: existing.isGeneratingImage,
-                        tips: fetched.tips,
-                        source: fetched.source
-                    )
-                    self.recipes[existingIndex] = updated
-                    print("📚 [DeepLink] Updated existing recipe at index \(existingIndex) (id: \(existing.id))")
-                    recipeIdToOpen = existing.id
-                } else {
-                    // Insert as a brand new recipe at the front of the list.
-                    self.recipes.insert(fetched, at: 0)
-                    print("📚 [DeepLink] Inserted fetched recipe at index 0 (total recipes: \(self.recipes.count))")
-                    recipeIdToOpen = fetched.id
+                let merged = RecipeIdentityMerge.merge(
+                    recipes: self.recipes,
+                    favoritedRecipes: self.favoritedRecipes,
+                    fetched: fetched
+                )
+                self.recipes = merged.recipes
+                self.favoritedRecipes = merged.favoritedRecipes
+                if let previous = merged.remappedFrom {
+                    self.remapRecipeIdentity(from: previous, to: merged.openedId)
+                    print("📚 [DeepLink] Preserved server id \(merged.openedId) in place of local id \(previous)")
                 }
-
-                self.attachRecipeIdsToUncategorized([recipeIdToOpen])
+                let recipeIdToOpen = merged.openedId
+                if self.cookbookContainingRecipe(recipeId: recipeIdToOpen) == nil {
+                    self.attachRecipeIdsToUncategorized([recipeIdToOpen])
+                } else {
+                    self.saveData()
+                }
                 self.deepLinkedRecipeIdToOpen = recipeIdToOpen
-                self.shouldNavigateToCookbooks = self.uncategorizedCookbookId
-                print("💾 [DeepLink] Saved after attaching recipe to Uncategorized")
-                print("🧭 [DeepLink] deepLinkedRecipeIdToOpen=\(recipeIdToOpen.uuidString), shouldNavigateToCookbooks=\(self.uncategorizedCookbookId?.uuidString ?? "nil")")
+                self.shouldNavigateToCookbooks = self.cookbookContainingRecipe(recipeId: recipeIdToOpen)?.id ?? self.uncategorizedCookbookId
+                print("🧭 [DeepLink] opening server id \(recipeIdToOpen.uuidString)")
             }
         } catch let error as APIError {
             print("❌ [DeepLink] APIError while fetching recipe: \(error.localizedDescription) (code=\(error.apiErrorCode ?? "none"))")
@@ -1489,8 +1279,7 @@ class PantryViewModel: ObservableObject {
         
         // Recipe images are free for all users (no generation credits).
         // Find recipe in either list
-        let recipe = recipes.first(where: { $0.id == recipeId }) ?? 
-                     favoritedRecipes.first(where: { $0.id == recipeId })
+        let recipe = recipe(id: recipeId)
         
         guard let recipeToUse = recipe else {
             print("❌ Recipe not found with id: \(recipeId)")
@@ -1505,21 +1294,7 @@ class PantryViewModel: ObservableObject {
                 // Mark recipe as generating image - update in both lists if it exists
                 print("🔄 Setting isGeneratingImage = true for recipe: \(recipeToUse.name)")
                 updateRecipeInBothLists(recipeId: recipeId) { recipe in
-                    Recipe(
-                        id: recipe.id,
-                        name: recipe.name,
-                        description: recipe.description,
-                        ingredients: recipe.ingredients,
-                        steps: recipe.steps,
-                        prepTimeMinutes: recipe.prepTimeMinutes,
-                        cookTimeMinutes: recipe.cookTimeMinutes,
-                        servings: recipe.servings,
-                        difficulty: recipe.difficulty,
-                        imageURL: recipe.imageURL,
-                        isGeneratingImage: true,
-                        tips: recipe.tips,
-                        source: recipe.source
-                    )
+                    recipe.withImage(url: recipe.imageURL, generating: true)
                 }
             }
         }
@@ -1535,21 +1310,7 @@ class PantryViewModel: ObservableObject {
                 // Update recipe with image URL in both lists if it exists
                 print("🔄 Updating recipe with image URL: \(imageURL)")
                 updateRecipeInBothLists(recipeId: recipeId) { recipe in
-                    Recipe(
-                        id: recipe.id,
-                        name: recipe.name,
-                        description: recipe.description,
-                        ingredients: recipe.ingredients,
-                        steps: recipe.steps,
-                        prepTimeMinutes: recipe.prepTimeMinutes,
-                        cookTimeMinutes: recipe.cookTimeMinutes,
-                        servings: recipe.servings,
-                        difficulty: recipe.difficulty,
-                        imageURL: imageURL,
-                        isGeneratingImage: false,
-                        tips: recipe.tips,
-                        source: recipe.source
-                    )
+                    recipe.withImage(url: imageURL, generating: false)
                 }
                 print("✅ Recipe updated with image URL. isGeneratingImage = false")
                 
@@ -1560,21 +1321,7 @@ class PantryViewModel: ObservableObject {
             await MainActor.run {
                 // Remove generating flag on error - update in both lists if it exists
                 updateRecipeInBothLists(recipeId: recipeId) { recipe in
-                    Recipe(
-                        id: recipe.id,
-                        name: recipe.name,
-                        description: recipe.description,
-                        ingredients: recipe.ingredients,
-                        steps: recipe.steps,
-                        prepTimeMinutes: recipe.prepTimeMinutes,
-                        cookTimeMinutes: recipe.cookTimeMinutes,
-                        servings: recipe.servings,
-                        difficulty: recipe.difficulty,
-                        imageURL: recipe.imageURL,
-                        isGeneratingImage: false,
-                        tips: recipe.tips,
-                        source: recipe.source
-                    )
+                    recipe.withImage(url: recipe.imageURL, generating: false)
                 }
                 // Use user-friendly error message from APIError
                 self.errorMessage = error.localizedDescription
@@ -1584,21 +1331,7 @@ class PantryViewModel: ObservableObject {
             await MainActor.run {
                 // Remove generating flag on error - update in both lists if it exists
                 updateRecipeInBothLists(recipeId: recipeId) { recipe in
-                    Recipe(
-                        id: recipe.id,
-                        name: recipe.name,
-                        description: recipe.description,
-                        ingredients: recipe.ingredients,
-                        steps: recipe.steps,
-                        prepTimeMinutes: recipe.prepTimeMinutes,
-                        cookTimeMinutes: recipe.cookTimeMinutes,
-                        servings: recipe.servings,
-                        difficulty: recipe.difficulty,
-                        imageURL: recipe.imageURL,
-                        isGeneratingImage: false,
-                        tips: recipe.tips,
-                        source: recipe.source
-                    )
+                    recipe.withImage(url: recipe.imageURL, generating: false)
                 }
                 self.errorMessage = "Failed to generate image. Please try again."
                 print("❌ Unexpected error generating recipe image: \(error)")
@@ -1816,23 +1549,9 @@ class PantryViewModel: ObservableObject {
         }
         
         do {
-            var modifiedRecipe = try await apiService.modifyRecipe(recipe: recipeToModify, prompt: prompt)
-            // Preserve the original recipe ID and image URL
-            modifiedRecipe = Recipe(
-                id: recipeId,
-                name: modifiedRecipe.name,
-                description: modifiedRecipe.description,
-                ingredients: modifiedRecipe.ingredients,
-                steps: modifiedRecipe.steps,
-                prepTimeMinutes: modifiedRecipe.prepTimeMinutes,
-                cookTimeMinutes: modifiedRecipe.cookTimeMinutes,
-                servings: modifiedRecipe.servings,
-                difficulty: modifiedRecipe.difficulty,
-                imageURL: recipeToModify.imageURL, // Preserve existing image URL
-                isGeneratingImage: false,
-                tips: modifiedRecipe.tips,
-                source: modifiedRecipe.source
-            )
+            let serverRecipe = try await apiService.modifyRecipe(recipe: recipeToModify, prompt: prompt)
+            let modifiedRecipe = RecipeModificationMerge.applying(server: serverRecipe, onto: recipeToModify)
+            let shouldRefreshImage = modifiedRecipe.visualIdentityChanged == true
             await MainActor.run {
                 // Update in both lists if it exists
                 updateRecipeInBothLists(recipeId: recipeId) { _ in
@@ -1844,8 +1563,12 @@ class PantryViewModel: ObservableObject {
                 
                 AppAnalytics.log(.recipeModified, parameters: [
                     "recipe_name": modifiedRecipe.name,
-                    "prompt_length": prompt.count
+                    "prompt_length": prompt.count,
+                    "visual_identity_changed": shouldRefreshImage
                 ])
+                if shouldRefreshImage {
+                    Task { await self.generateRecipeImage(recipeId: recipeId) }
+                }
             }
         } catch let error as APIError {
             await MainActor.run {
@@ -1873,6 +1596,8 @@ class PantryViewModel: ObservableObject {
         favoriteRecipeIds = []
         cookbooks = []
         pantryMatchScores = [:]
+        generationSessions = []
+        activeGenerationSessionId = nil
         errorMessage = nil
         saveData() // Save after clearing
         persistenceService.clear() // Also clear the saved file
@@ -1888,31 +1613,19 @@ class PantryViewModel: ObservableObject {
     // MARK: - Persistence
     
     private func resetLoadingState(_ recipe: Recipe) -> Recipe {
-        Recipe(
-            id: recipe.id,
-            name: recipe.name,
-            description: recipe.description,
-            ingredients: recipe.ingredients,
-            steps: recipe.steps,
-            prepTimeMinutes: recipe.prepTimeMinutes,
-            cookTimeMinutes: recipe.cookTimeMinutes,
-            servings: recipe.servings,
-            difficulty: recipe.difficulty,
-            imageURL: recipe.imageURL,
-            isGeneratingImage: false,
-            tips: recipe.tips,
-            source: recipe.source
-        )
+        recipe.withImage(url: recipe.imageURL, generating: false)
     }
 
     /// Uncategorized first, then Favorites, then user cookbooks by `createdAt`. Any extra rows append at the end.
     private func normalizedCookbookDisplayOrder(_ books: [Cookbook]) -> [Cookbook] {
         let unc = books.first(where: { $0.isDefaultUncategorized })
+        let inbox = books.first(where: { $0.isInbox })
         let fav = books.first(where: { $0.isDefaultFavorites })
-        var rest = books.filter { !$0.isDefaultFavorites && !$0.isDefaultUncategorized }
+        var rest = books.filter { !$0.isDefaultFavorites && !$0.isDefaultUncategorized && !$0.isInbox }
         rest.sort { $0.createdAt < $1.createdAt }
         var ordered: [Cookbook] = []
         if let u = unc { ordered.append(u) }
+        if let inbox { ordered.append(inbox) }
         if let f = fav { ordered.append(f) }
         ordered.append(contentsOf: rest)
         for b in books where !ordered.contains(where: { $0.id == b.id }) {
@@ -1946,7 +1659,8 @@ class PantryViewModel: ObservableObject {
                 recipeIds: $0.recipeIds,
                 createdAt: $0.createdAt,
                 isDefaultFavorites: $0.isDefaultFavorites,
-                isDefaultUncategorized: $0.isDefaultUncategorized
+                isDefaultUncategorized: $0.isDefaultUncategorized,
+                isInbox: $0.isInbox
             )
         }
         let migrationPreviouslyCompleted = UserDefaults.standard.bool(forKey: cookbookMigrationFlagKey)
@@ -2027,9 +1741,10 @@ class PantryViewModel: ObservableObject {
         }
 
         let persistedRecipeIds = savedData.recipes.map(\.id)
+        let sessionProtectedIds = Set(savedData.generationSessions.flatMap { $0.expandedRecipes.values.map(\.id) })
         var idsInAnyCookbook = Set(nextCookbooks.flatMap(\.recipeIds))
         if let uncIdx = nextCookbooks.firstIndex(where: { $0.isDefaultUncategorized }) {
-            for rid in persistedRecipeIds where !idsInAnyCookbook.contains(rid) {
+            for rid in persistedRecipeIds where !idsInAnyCookbook.contains(rid) && !sessionProtectedIds.contains(rid) {
                 if !nextCookbooks[uncIdx].recipeIds.contains(rid) {
                     nextCookbooks[uncIdx].recipeIds.append(rid)
                     migrationChangedData = true
@@ -2052,7 +1767,37 @@ class PantryViewModel: ObservableObject {
             }
         }
 
-        cookbooks = nextCookbooks
+        if !UserDefaults.standard.bool(forKey: EarlierIdeasMigration.migrationDefaultsKey) {
+            let snapshots = nextCookbooks.map {
+                CookbookSnapshot(
+                    id: $0.id,
+                    name: $0.name,
+                    recipeIds: $0.recipeIds,
+                    createdAt: $0.createdAt,
+                    isDefaultFavorites: $0.isDefaultFavorites,
+                    isDefaultUncategorized: $0.isDefaultUncategorized,
+                    isInbox: $0.isInbox
+                )
+            }
+            let migrated = EarlierIdeasMigration.migrate(snapshots)
+            if migrated.changed {
+                nextCookbooks = migrated.cookbooks.map {
+                    Cookbook(
+                        id: $0.id,
+                        name: $0.name,
+                        recipeIds: $0.recipeIds,
+                        createdAt: $0.createdAt,
+                        isDefaultFavorites: $0.isDefaultFavorites,
+                        isDefaultUncategorized: $0.isDefaultUncategorized,
+                        isInbox: $0.isInbox
+                    )
+                }
+                migrationChangedData = true
+            }
+            UserDefaults.standard.set(true, forKey: EarlierIdeasMigration.migrationDefaultsKey)
+        }
+
+        cookbooks = normalizedCookbookDisplayOrder(nextCookbooks)
 
         selectedImages = savedData.imageURLs.map { savedImage in
             ImageWithURL(
@@ -2069,10 +1814,20 @@ class PantryViewModel: ObservableObject {
 
         let favoritedIdSet = Set(favoriteRecipeIds)
         recipes = savedData.recipes.map(resetLoadingState).filter { !favoritedIdSet.contains($0.id) }
+        generationSessions = savedData.generationSessions
+        activeGenerationSessionId = generationSessions.first?.sessionId
+        for session in generationSessions {
+            for recipe in session.expandedRecipes.values {
+                let stamped = resetLoadingState(recipe)
+                if favoritedIdSet.contains(stamped.id) { continue }
+                if recipes.contains(where: { $0.id == stamped.id }) { continue }
+                recipes.insert(stamped, at: 0)
+            }
+        }
         trimRecipesTabToLimitIfNeeded()
         pantryInsights = savedData.pantryInsights
 
-        let validMealPlanRecipeIds = Set(recipes.map(\.id) + favoritedRecipes.map(\.id))
+        let validMealPlanRecipeIds = Set(recipes.map(\.id) + favoritedRecipes.map(\.id) + generationSessions.flatMap { $0.expandedRecipes.values.map(\.id) })
         mealPlanByDay = Self.pruneMealPlan(savedData.mealPlanByDay, validRecipeIds: validMealPlanRecipeIds)
         mealPlanCalendarEventIdsByDay = savedData.mealPlanCalendarEventIdsByDay
 
@@ -2101,7 +1856,7 @@ class PantryViewModel: ObservableObject {
     }
     
     /// Saves all data to disk
-    private func saveData() {
+    func saveData() {
         trimRecipesTabToLimitIfNeeded()
         cookbooks = normalizedCookbookDisplayOrder(cookbooks)
 
@@ -2121,11 +1876,13 @@ class PantryViewModel: ObservableObject {
                 recipeIds: $0.recipeIds,
                 createdAt: $0.createdAt,
                 isDefaultFavorites: $0.isDefaultFavorites,
-                isDefaultUncategorized: $0.isDefaultUncategorized
+                isDefaultUncategorized: $0.isDefaultUncategorized,
+                isInbox: $0.isInbox
             )
         }
         
-        let validIds = Set((recipes + favoritedRecipes).map(\.id))
+        let sessionRecipeIds = generationSessions.flatMap { $0.expandedRecipes.values.map(\.id) }
+        let validIds = Set((recipes + favoritedRecipes).map(\.id) + sessionRecipeIds)
         let planToSave = Self.pruneMealPlan(mealPlanByDay, validRecipeIds: validIds)
         var mealPlanWasPruned = false
         if planToSave != mealPlanByDay {
@@ -2144,7 +1901,8 @@ class PantryViewModel: ObservableObject {
             pantryInsights: pantryInsights,
             mealPlanByDay: mealPlanByDay,
             mealPlanCalendarEventIdsByDay: mealPlanCalendarEventIdsByDay,
-            groceryItems: groceryItems
+            groceryItems: groceryItems,
+            generationSessions: generationSessions
         )
 
         if mealPlanWasPruned {

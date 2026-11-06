@@ -13,6 +13,8 @@ struct APIConfig {
     static let cookbookScanEndpoint = "/api/recipe/scan/cookbook"
     static let scanWebRecipeEndpoint = "/api/recipe/scan/url"
     static let recipesEndpoint = "/api/recipe/generate"
+    static let recipePitchesEndpoint = "/api/v2/recipe/pitches"
+    static let recipeExpandEndpoint = "/api/v2/recipe/expand"
     static let mealPlanEndpoint = "/api/recipe/meal-plan"
     static let modifyRecipeEndpoint = "/api/recipe/modify"
     static let recipeImageEndpoint = "/api/recipe/image/generate"
@@ -27,6 +29,14 @@ struct APIConfig {
     
     static var recipesURL: URL {
         URL(string: baseURL + recipesEndpoint)!
+    }
+
+    static var recipePitchesURL: URL {
+        URL(string: baseURL + recipePitchesEndpoint)!
+    }
+
+    static var recipeExpandURL: URL {
+        URL(string: baseURL + recipeExpandEndpoint)!
     }
 
     static var mealPlanURL: URL {

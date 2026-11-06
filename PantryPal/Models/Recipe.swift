@@ -20,21 +20,76 @@ enum RecipeSourceCategory: Equatable, Hashable {
     case other
 }
 
+struct RecipeUndoSnapshot: Codable, Hashable {
+    var name: String
+    var description: String
+    var ingredients: [RecipeIngredient]
+    var steps: [String]
+    var structuredSteps: [StructuredStep]?
+    var prepTimeMinutes: Int?
+    var cookTimeMinutes: Int?
+    var servings: Int?
+    var difficulty: Int?
+    var tips: [String]?
+    var imageURL: String?
+    var hook: String?
+    var extraIngredients: [String]?
+    var changeSummary: String?
+
+    init(recipe: Recipe) {
+        name = recipe.name
+        description = recipe.description
+        ingredients = recipe.ingredients
+        steps = recipe.steps
+        structuredSteps = recipe.structuredSteps
+        prepTimeMinutes = recipe.prepTimeMinutes
+        cookTimeMinutes = recipe.cookTimeMinutes
+        servings = recipe.servings
+        difficulty = recipe.difficulty
+        tips = recipe.tips
+        imageURL = recipe.imageURL
+        hook = recipe.hook
+        extraIngredients = recipe.extraIngredients
+        changeSummary = recipe.changeSummary
+    }
+}
+
 struct Recipe: Codable, Identifiable {
     let id: UUID
-    let name: String
-    let description: String
-    let ingredients: [RecipeIngredient]
-    let steps: [String]
-    let prepTimeMinutes: Int?
-    let cookTimeMinutes: Int?
-    let servings: Int?
-    let difficulty: Int?
-    let tips: [String]?
-    let source: RecipeSource?
+    var name: String
+    var description: String
+    var ingredients: [RecipeIngredient]
+    var steps: [String]
+    var prepTimeMinutes: Int?
+    var cookTimeMinutes: Int?
+    var servings: Int?
+    var difficulty: Int?
+    var tips: [String]?
+    var source: RecipeSource?
     var imageURL: String?
     var isGeneratingImage: Bool = false
-    
+    var hook: String?
+    var lane: String?
+    var cuisine: String?
+    var technique: String?
+    var extraIngredients: [String]?
+    var structuredSteps: [StructuredStep]?
+    var version: Int?
+    var updatedAt: Int?
+    var changeSummary: String?
+    var changedFields: [String]?
+    var visualIdentityChanged: Bool?
+    var tags: [String]
+    var cookedCount: Int
+    var lastCookedAt: Date?
+    var rating: Int?
+    var wouldCookAgain: Bool?
+    var cookNotes: String?
+    var catalogedAt: Date?
+    var undoSnapshot: RecipeUndoSnapshot?
+    var pitchId: String?
+    var generationSessionId: String?
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -48,7 +103,28 @@ struct Recipe: Codable, Identifiable {
         imageURL: String? = nil,
         isGeneratingImage: Bool = false,
         tips: [String]? = nil,
-        source: RecipeSource? = nil
+        source: RecipeSource? = nil,
+        hook: String? = nil,
+        lane: String? = nil,
+        cuisine: String? = nil,
+        technique: String? = nil,
+        extraIngredients: [String]? = nil,
+        structuredSteps: [StructuredStep]? = nil,
+        version: Int? = nil,
+        updatedAt: Int? = nil,
+        changeSummary: String? = nil,
+        changedFields: [String]? = nil,
+        visualIdentityChanged: Bool? = nil,
+        tags: [String] = [],
+        cookedCount: Int = 0,
+        lastCookedAt: Date? = nil,
+        rating: Int? = nil,
+        wouldCookAgain: Bool? = nil,
+        cookNotes: String? = nil,
+        catalogedAt: Date? = nil,
+        undoSnapshot: RecipeUndoSnapshot? = nil,
+        pitchId: String? = nil,
+        generationSessionId: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -63,36 +139,72 @@ struct Recipe: Codable, Identifiable {
         self.source = source
         self.imageURL = imageURL
         self.isGeneratingImage = isGeneratingImage
+        self.hook = hook
+        self.lane = lane
+        self.cuisine = cuisine
+        self.technique = technique
+        self.extraIngredients = extraIngredients
+        self.structuredSteps = structuredSteps
+        self.version = version
+        self.updatedAt = updatedAt
+        self.changeSummary = changeSummary
+        self.changedFields = changedFields
+        self.visualIdentityChanged = visualIdentityChanged
+        self.tags = tags
+        self.cookedCount = cookedCount
+        self.lastCookedAt = lastCookedAt
+        self.rating = rating
+        self.wouldCookAgain = wouldCookAgain
+        self.cookNotes = cookNotes
+        self.catalogedAt = catalogedAt
+        self.undoSnapshot = undoSnapshot
+        self.pitchId = pitchId
+        self.generationSessionId = generationSessionId
     }
-    
-    // Custom decoder: Generate id if not present (API responses), use existing id if present (saved data)
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        // Try to decode id, but generate a new one if it's not present (API responses)
-        if let decodedId = try? container.decode(UUID.self, forKey: .id) {
-            id = decodedId
+        if let raw = FlexibleDecoding.decodeString(container, forKey: .id) {
+            id = StableIdentifier.uuid(from: raw)
         } else {
-            id = UUID() // Generate new ID for API responses that don't include it
+            id = UUID()
         }
-        
-        name = try container.decode(String.self, forKey: .name)
-        description = try container.decode(String.self, forKey: .description)
-        ingredients = try container.decode([RecipeIngredient].self, forKey: .ingredients)
-        steps = try container.decode([String].self, forKey: .steps)
-        prepTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .prepTimeMinutes)
-        cookTimeMinutes = try container.decodeIfPresent(Int.self, forKey: .cookTimeMinutes)
-        servings = try container.decodeIfPresent(Int.self, forKey: .servings)
-        difficulty = try container.decodeIfPresent(Int.self, forKey: .difficulty)
+        name = FlexibleDecoding.decodeString(container, forKey: .name) ?? "Untitled recipe"
+        description = FlexibleDecoding.decodeString(container, forKey: .description) ?? ""
+        ingredients = (try? container.decode([RecipeIngredient].self, forKey: .ingredients)) ?? []
+        steps = (try? container.decode([String].self, forKey: .steps)) ?? []
+        prepTimeMinutes = FlexibleDecoding.decodeInt(container, forKey: .prepTimeMinutes)
+        cookTimeMinutes = FlexibleDecoding.decodeInt(container, forKey: .cookTimeMinutes)
+        servings = FlexibleDecoding.decodeInt(container, forKey: .servings)
+        difficulty = FlexibleDecoding.decodeInt(container, forKey: .difficulty)
         tips = try container.decodeIfPresent([String].self, forKey: .tips)
         source = try container.decodeIfPresent(RecipeSource.self, forKey: .source)
-        // Support both "imageURL" (local persistence) and "imageUrl" (backend API)
         imageURL = try container.decodeIfPresent(String.self, forKey: .imageURL)
             ?? container.decodeIfPresent(String.self, forKey: .imageUrl)
-        isGeneratingImage = false // Not encoded/decoded, just UI state
+        isGeneratingImage = false
+        hook = FlexibleDecoding.decodeString(container, forKey: .hook)
+        lane = FlexibleDecoding.decodeString(container, forKey: .lane)
+        cuisine = FlexibleDecoding.decodeString(container, forKey: .cuisine)
+        technique = FlexibleDecoding.decodeString(container, forKey: .technique)
+        extraIngredients = try container.decodeIfPresent([String].self, forKey: .extraIngredients)
+        structuredSteps = try container.decodeIfPresent([StructuredStep].self, forKey: .structuredSteps)
+        version = FlexibleDecoding.decodeInt(container, forKey: .version)
+        updatedAt = FlexibleDecoding.decodeInt(container, forKey: .updatedAt)
+        changeSummary = FlexibleDecoding.decodeString(container, forKey: .changeSummary)
+        changedFields = try container.decodeIfPresent([String].self, forKey: .changedFields)
+        visualIdentityChanged = FlexibleDecoding.decodeBool(container, forKey: .visualIdentityChanged)
+        tags = (try? container.decode([String].self, forKey: .tags)) ?? []
+        cookedCount = FlexibleDecoding.decodeInt(container, forKey: .cookedCount) ?? 0
+        lastCookedAt = try container.decodeIfPresent(Date.self, forKey: .lastCookedAt)
+        rating = FlexibleDecoding.decodeInt(container, forKey: .rating)
+        wouldCookAgain = FlexibleDecoding.decodeBool(container, forKey: .wouldCookAgain)
+        cookNotes = FlexibleDecoding.decodeString(container, forKey: .cookNotes)
+        catalogedAt = try container.decodeIfPresent(Date.self, forKey: .catalogedAt)
+        undoSnapshot = try container.decodeIfPresent(RecipeUndoSnapshot.self, forKey: .undoSnapshot)
+        pitchId = FlexibleDecoding.decodeString(container, forKey: .pitchId)
+        generationSessionId = FlexibleDecoding.decodeString(container, forKey: .generationSessionId)
     }
-    
-    // Custom encoder: Always include id when encoding (for local persistence)
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -107,54 +219,249 @@ struct Recipe: Codable, Identifiable {
         try container.encodeIfPresent(tips, forKey: .tips)
         try container.encodeIfPresent(source, forKey: .source)
         try container.encodeIfPresent(imageURL, forKey: .imageURL)
-        // isGeneratingImage is not encoded
+        try container.encodeIfPresent(hook, forKey: .hook)
+        try container.encodeIfPresent(lane, forKey: .lane)
+        try container.encodeIfPresent(cuisine, forKey: .cuisine)
+        try container.encodeIfPresent(technique, forKey: .technique)
+        try container.encodeIfPresent(extraIngredients, forKey: .extraIngredients)
+        try container.encodeIfPresent(structuredSteps, forKey: .structuredSteps)
+        try container.encodeIfPresent(version, forKey: .version)
+        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(changeSummary, forKey: .changeSummary)
+        try container.encodeIfPresent(changedFields, forKey: .changedFields)
+        try container.encodeIfPresent(visualIdentityChanged, forKey: .visualIdentityChanged)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(cookedCount, forKey: .cookedCount)
+        try container.encodeIfPresent(lastCookedAt, forKey: .lastCookedAt)
+        try container.encodeIfPresent(rating, forKey: .rating)
+        try container.encodeIfPresent(wouldCookAgain, forKey: .wouldCookAgain)
+        try container.encodeIfPresent(cookNotes, forKey: .cookNotes)
+        try container.encodeIfPresent(catalogedAt, forKey: .catalogedAt)
+        try container.encodeIfPresent(undoSnapshot, forKey: .undoSnapshot)
+        try container.encodeIfPresent(pitchId, forKey: .pitchId)
+        try container.encodeIfPresent(generationSessionId, forKey: .generationSessionId)
     }
-    
+
     enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case description
-        case ingredients
-        case steps
-        case prepTimeMinutes
-        case cookTimeMinutes
-        case servings
-        case difficulty
-        case tips
-        case source
-        case imageURL      // local persistence key
-        case imageUrl = "imageUrl" // backend API key
+        case id, name, description, ingredients, steps
+        case prepTimeMinutes, cookTimeMinutes, servings, difficulty, tips, source
+        case imageURL
+        case imageUrl = "imageUrl"
+        case hook, lane, cuisine, technique, extraIngredients, structuredSteps
+        case version, updatedAt, changeSummary, changedFields, visualIdentityChanged
+        case tags, cookedCount, lastCookedAt, rating, wouldCookAgain, cookNotes
+        case catalogedAt, undoSnapshot, pitchId, generationSessionId
+    }
+
+    var totalTimeMinutes: Int? {
+        switch (prepTimeMinutes, cookTimeMinutes) {
+        case let (prep?, cook?): return prep + cook
+        case let (prep?, nil): return prep
+        case let (nil, cook?): return cook
+        default: return nil
+        }
+    }
+
+    func withImage(url: String?, generating: Bool) -> Recipe {
+        var copy = self
+        copy.imageURL = url
+        copy.isGeneratingImage = generating
+        return copy
+    }
+
+    func stampedForLibrary(now: Date = Date()) -> Recipe {
+        var copy = self
+        if copy.catalogedAt == nil { copy.catalogedAt = now }
+        copy.isGeneratingImage = false
+        return copy
+    }
+
+    func pitchCard() -> RecipePitch {
+        let pantry = ingredients
+            .filter { ($0.category ?? "pantry").lowercased() != "extra" }
+            .map(\.name)
+        let minutes = totalTimeMinutes
+        return RecipePitch(
+            pitchId: pitchId ?? id.uuidString,
+            lane: lane,
+            title: name,
+            hook: hook ?? description,
+            totalTimeMinutes: minutes,
+            prepTimeMinutes: prepTimeMinutes,
+            cookTimeMinutes: cookTimeMinutes,
+            difficulty: difficulty,
+            servings: servings,
+            cuisine: cuisine,
+            technique: technique,
+            pantryIngredientsUsed: pantry,
+            staplesUsed: [],
+            extraIngredients: extraIngredients ?? ingredients.filter { ($0.category ?? "").lowercased() == "extra" }.map(\.name)
+        )
     }
 }
 
 extension Recipe {
-    /// Ingredient lines with a non-empty `name`, suitable for nutrition and validation.
     var nonEmptyRecipeIngredientLines: [RecipeIngredient] {
         ingredients.filter { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     var sourceCategory: RecipeSourceCategory {
-        guard let rawSourceName = source?.name else {
-            return .other
-        }
-        let normalized = rawSourceName
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard !normalized.isEmpty else {
-            return .other
-        }
-        if normalized.contains("reciplease") {
-            return .reciplease
-        }
-        if normalized.contains("cookbook") {
-            return .cookbook
-        }
-        if normalized.contains("web") || normalized.contains("url") {
-            return .web
-        }
+        guard let rawSourceName = source?.name else { return .other }
+        let normalized = rawSourceName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty else { return .other }
+        if normalized.contains("reciplease") { return .reciplease }
+        if normalized.contains("cookbook") { return .cookbook }
+        if normalized.contains("web") || normalized.contains("url") { return .web }
         return .other
     }
+
+    func restoringUndo() -> Recipe? {
+        guard let undoSnapshot else { return nil }
+        var copy = self
+        copy.name = undoSnapshot.name
+        copy.description = undoSnapshot.description
+        copy.ingredients = undoSnapshot.ingredients
+        copy.steps = undoSnapshot.steps
+        copy.structuredSteps = undoSnapshot.structuredSteps
+        copy.prepTimeMinutes = undoSnapshot.prepTimeMinutes
+        copy.cookTimeMinutes = undoSnapshot.cookTimeMinutes
+        copy.servings = undoSnapshot.servings
+        copy.difficulty = undoSnapshot.difficulty
+        copy.tips = undoSnapshot.tips
+        copy.imageURL = undoSnapshot.imageURL
+        copy.hook = undoSnapshot.hook
+        copy.extraIngredients = undoSnapshot.extraIngredients
+        copy.changeSummary = nil
+        copy.changedFields = nil
+        copy.visualIdentityChanged = nil
+        copy.undoSnapshot = nil
+        copy.isGeneratingImage = false
+        return copy
+    }
 }
+
+enum RecipeModificationMerge {
+    /// Applies a server modification while keeping the local id, cook history, and tags.
+    /// The previous version stays available for undo. Photos refresh only when the dish itself changed.
+    static func applying(server: Recipe, onto original: Recipe) -> Recipe {
+        var merged = server
+        merged = Recipe(
+            id: original.id,
+            name: server.name,
+            description: server.description,
+            ingredients: server.ingredients,
+            steps: server.steps,
+            prepTimeMinutes: server.prepTimeMinutes ?? original.prepTimeMinutes,
+            cookTimeMinutes: server.cookTimeMinutes ?? original.cookTimeMinutes,
+            servings: server.servings ?? original.servings,
+            difficulty: server.difficulty ?? original.difficulty,
+            imageURL: server.visualIdentityChanged == true ? nil : (server.imageURL ?? original.imageURL),
+            isGeneratingImage: false,
+            tips: server.tips ?? original.tips,
+            source: server.source ?? original.source,
+            hook: server.hook ?? original.hook,
+            lane: server.lane ?? original.lane,
+            cuisine: server.cuisine ?? original.cuisine,
+            technique: server.technique ?? original.technique,
+            extraIngredients: server.extraIngredients ?? original.extraIngredients,
+            structuredSteps: server.structuredSteps ?? original.structuredSteps,
+            version: server.version ?? original.version,
+            updatedAt: server.updatedAt ?? original.updatedAt,
+            changeSummary: server.changeSummary,
+            changedFields: server.changedFields,
+            visualIdentityChanged: server.visualIdentityChanged,
+            tags: original.tags,
+            cookedCount: original.cookedCount,
+            lastCookedAt: original.lastCookedAt,
+            rating: original.rating,
+            wouldCookAgain: original.wouldCookAgain,
+            cookNotes: original.cookNotes,
+            catalogedAt: original.catalogedAt,
+            undoSnapshot: RecipeUndoSnapshot(recipe: original),
+            pitchId: original.pitchId,
+            generationSessionId: original.generationSessionId
+        )
+        return merged
+    }
+}
+
+struct RecipeIdentityMergeResult {
+    var recipes: [Recipe]
+    var favoritedRecipes: [Recipe]
+    var openedId: UUID
+    var remappedFrom: UUID?
+}
+
+enum RecipeIdentityMerge {
+    /// Keeps the server recipe id. A same-name local copy is retargeted instead of discarding the Firestore UUID.
+    static func merge(recipes: [Recipe], favoritedRecipes: [Recipe], fetched: Recipe) -> RecipeIdentityMergeResult {
+        if let index = recipes.firstIndex(where: { $0.id == fetched.id }) {
+            var next = recipes
+            next[index] = preservingLocal(existing: recipes[index], incoming: fetched, id: fetched.id)
+            return RecipeIdentityMergeResult(recipes: next, favoritedRecipes: favoritedRecipes, openedId: fetched.id, remappedFrom: nil)
+        }
+        if let index = favoritedRecipes.firstIndex(where: { $0.id == fetched.id }) {
+            var next = favoritedRecipes
+            next[index] = preservingLocal(existing: favoritedRecipes[index], incoming: fetched, id: fetched.id)
+            return RecipeIdentityMergeResult(recipes: recipes, favoritedRecipes: next, openedId: fetched.id, remappedFrom: nil)
+        }
+        if let index = recipes.firstIndex(where: { $0.name == fetched.name && $0.description == fetched.description }) {
+            let oldId = recipes[index].id
+            var next = recipes
+            next[index] = preservingLocal(existing: recipes[index], incoming: fetched, id: fetched.id)
+            return RecipeIdentityMergeResult(recipes: next, favoritedRecipes: favoritedRecipes, openedId: fetched.id, remappedFrom: oldId == fetched.id ? nil : oldId)
+        }
+        if let index = favoritedRecipes.firstIndex(where: { $0.name == fetched.name && $0.description == fetched.description }) {
+            let oldId = favoritedRecipes[index].id
+            var next = favoritedRecipes
+            next[index] = preservingLocal(existing: favoritedRecipes[index], incoming: fetched, id: fetched.id)
+            return RecipeIdentityMergeResult(recipes: recipes, favoritedRecipes: next, openedId: fetched.id, remappedFrom: oldId == fetched.id ? nil : oldId)
+        }
+        var inserted = recipes
+        inserted.insert(fetched.stampedForLibrary(), at: 0)
+        return RecipeIdentityMergeResult(recipes: inserted, favoritedRecipes: favoritedRecipes, openedId: fetched.id, remappedFrom: nil)
+    }
+
+    private static func preservingLocal(existing: Recipe, incoming: Recipe, id: UUID) -> Recipe {
+        Recipe(
+            id: id,
+            name: incoming.name,
+            description: incoming.description,
+            ingredients: incoming.ingredients,
+            steps: incoming.steps,
+            prepTimeMinutes: incoming.prepTimeMinutes,
+            cookTimeMinutes: incoming.cookTimeMinutes,
+            servings: incoming.servings,
+            difficulty: incoming.difficulty,
+            imageURL: incoming.imageURL ?? existing.imageURL,
+            isGeneratingImage: false,
+            tips: incoming.tips ?? existing.tips,
+            source: incoming.source ?? existing.source,
+            hook: incoming.hook ?? existing.hook,
+            lane: incoming.lane ?? existing.lane,
+            cuisine: incoming.cuisine ?? existing.cuisine,
+            technique: incoming.technique ?? existing.technique,
+            extraIngredients: incoming.extraIngredients ?? existing.extraIngredients,
+            structuredSteps: incoming.structuredSteps ?? existing.structuredSteps,
+            version: incoming.version ?? existing.version,
+            updatedAt: incoming.updatedAt,
+            changeSummary: incoming.changeSummary,
+            changedFields: incoming.changedFields,
+            visualIdentityChanged: incoming.visualIdentityChanged,
+            tags: existing.tags,
+            cookedCount: existing.cookedCount,
+            lastCookedAt: existing.lastCookedAt,
+            rating: existing.rating,
+            wouldCookAgain: existing.wouldCookAgain,
+            cookNotes: existing.cookNotes,
+            catalogedAt: existing.catalogedAt ?? Date(),
+            undoSnapshot: existing.undoSnapshot,
+            pitchId: existing.pitchId,
+            generationSessionId: existing.generationSessionId
+        )
+    }
+}
+
 
 struct RecipeResponse: Codable {
     let recipes: [Recipe]

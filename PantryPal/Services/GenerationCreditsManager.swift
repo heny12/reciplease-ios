@@ -16,6 +16,7 @@ final class GenerationCreditsManager: ObservableObject {
 
     /// Present the quota / upgrade sheet (header coin tap or blocked generation).
     @Published var showGenerationLimitSheet = false
+    @Published var serverQuota: QuotaExceededDetails?
 
     @Published private(set) var remainingCredits: Int = 0
     @Published private(set) var maxCreditsForCurrentTier: Int = 0
@@ -98,6 +99,16 @@ final class GenerationCreditsManager: ObservableObject {
         let n = min(maxCount, remainingCredits)
         for _ in 0..<n {
             consumeGenerationCredit()
+        }
+    }
+
+    func noteServerQuota(_ details: QuotaExceededDetails) {
+        serverQuota = details
+        if let limit = details.limit {
+            maxCreditsForCurrentTier = limit
+        }
+        if let remaining = details.remaining {
+            remainingCredits = remaining
         }
     }
 

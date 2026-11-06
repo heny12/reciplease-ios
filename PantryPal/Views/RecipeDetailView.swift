@@ -22,6 +22,7 @@ struct RecipeDetailView: View {
     @State private var showingRecipePlanBubble = false
     @State private var showingAddToGrocerySheet = false
     @State private var showStepFocusMode = false
+    @State private var preppedIngredientIDs: Set<UUID> = []
     @AppStorage("Reciplease.KeepScreenAwake") private var keepScreenAwakePreference = false
     @State private var hasAppliedWakeLock = false
     @State private var selectedServingsOverride: Int = 0
@@ -61,10 +62,7 @@ struct RecipeDetailView: View {
     // Check both recipes and favoritedRecipes arrays
     // Access both arrays to ensure observation triggers updates
     private var recipe: Recipe? {
-        let recipes = viewModel.recipes
-        let favoritedRecipes = viewModel.favoritedRecipes
-        return recipes.first { $0.id == recipeId } ?? 
-               favoritedRecipes.first { $0.id == recipeId }
+        viewModel.recipe(id: recipeId)
     }
 
     /// Cookbook that currently holds this recipe (single membership). Ignores stale navigation `sourceCookbookId` when membership differs.
@@ -180,46 +178,14 @@ struct RecipeDetailView: View {
     }
 
     /// Returns (displayText, scaleFactorToShow). When scaleFactorToShow is non-nil, the quantity couldn't be parsed so we show the original text and "× scaleFactorToShow" so the user can scale manually.
-    private func scaledQuantity(_ quantity: String, recipeServings: Int?, currentServings: Int) -> (text: String, scaleFactorToShow: Int?) {
-        guard !quantity.isEmpty else { return (quantity, nil) }
-
-        let baseServings = max(recipeServings ?? 1, 1)
-        let factor = Double(currentServings) / Double(baseServings)
-        guard baseServings != currentServings else { return (quantity, nil) }
-
-        if Self.isNonScalableQuantity(quantity) { return (quantity, nil) }
-
-        let parts = quantity.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-        guard let first = parts.first else {
-            return (quantity, Self.scaleIndicator(for: factor))
-        }
-
-        let numberPart = String(first)
-        let rest = parts.count > 1 ? " " + parts[1] : ""
-
-        let numericValue: Double?
-
-        if numberPart.contains("/") {
-            let fractionParts = numberPart.split(separator: "/")
-            if fractionParts.count == 2,
-               let num = Double(fractionParts[0]),
-               let den = Double(fractionParts[1]),
-               den != 0 {
-                numericValue = num / den
-            } else {
-                numericValue = nil
-            }
-        } else {
-            numericValue = Double(numberPart)
-        }
-
-        guard let value = numericValue else {
-            return (quantity, Self.scaleIndicator(for: factor))
-        }
-
-        let scaled = value * factor
-        let formatted = formatQuantityValue(scaled)
-        return (formatted + rest, nil)
+    private func scaledQuantity(for ingredient: RecipeIngredient, recipe: Recipe, currentServings: Int) -> (text: String, scaleFactorToShow: Int?) {
+        RecipeQuantityScaling.scaledDisplay(
+            amount: ingredient.amount,
+            unit: ingredient.unit,
+            quantity: ingredient.quantity,
+            recipeServings: recipe.servings,
+            currentServings: currentServings
+        )
     }
 
     private func formatQuantityValue(_ value: Double) -> String {
@@ -620,13 +586,15 @@ struct RecipeDetailView: View {
                 PaywallView(scenario: .upgrade, isPresented: recipeDetailPaywallBinding)
             }
             .fullScreenCover(isPresented: $showStepFocusMode) {
-                StepByStepCookingView(
-                    recipe: recipe,
+                CookModeView(
+                    viewModel: viewModel,
+                    recipeId: recipe.id,
                     servings: currentServings(for: recipe),
                     isPresented: $showStepFocusMode
                 )
             }
             .onAppear {
+                viewModel.ensureHeroImage(for: recipe.id)
                 viewModel.isShowingRecipeDetail = true
                 
                 if keepScreenAwakePreference && !hasAppliedWakeLock {
@@ -727,6 +695,23 @@ struct RecipeDetailView: View {
     private func contentCard(recipe: Recipe) -> some View {
         return VStack(alignment: .leading, spacing: LayoutHelpers.sectionSpacing) {
             headerSection(recipe: recipe)
+            startCookingButton
+            if let summary = recipe.changeSummary, !summary.isEmpty {
+                Text(summary)
+                    .font(.pantrySubheadline)
+                    .foregroundStyle(Color.pantryTextSecondary)
+                    .padding(.horizontal)
+            }
+            if recipe.undoSnapshot != nil {
+                Button("Undo modification") {
+                    viewModel.undoRecipeModification(recipeId: recipe.id)
+                }
+                .font(.pantrySubheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.pantryPrimary)
+                .padding(.horizontal)
+            }
+            recipeTagRow(recipe: recipe)
             recipeTimeSection(recipe: recipe, servings: servingsBinding(for: recipe))
             recipeCookbookContextRow(recipe: recipe)
             actionPillsRow(recipe: recipe)
@@ -922,8 +907,51 @@ struct RecipeDetailView: View {
         .padding(.top, DesignTokens.spacingMD)
     }
 
+    private var startCookingButton: some View {
+        Button {
+            HapticFeedback.medium()
+            showStepFocusMode = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "flame.fill")
+                Text("Start Cooking")
+                    .font(.pantryHeadline)
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color.pantryPrimary)
+            .foregroundStyle(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+
+    private func recipeTagRow(recipe: Recipe) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(RecipeCollectionTag.all, id: \.self) { tag in
+                    let selected = recipe.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
+                    Button {
+                        viewModel.toggleRecipeTag(tag, recipeId: recipe.id)
+                    } label: {
+                        Text(tag)
+                            .font(.pantryCaption)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(selected ? Color.pantrySecondary : Color.pantrySurface))
+                            .foregroundStyle(selected ? Color.white : Color.pantryTextPrimary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
     private func actionPillsRow(recipe: Recipe) -> some View {
-        let shareURL = URL(string: "https://reciplease.info/recipes/shared/\(recipe.id.uuidString.lowercased())")!
         let hasTips = !(recipe.tips ?? []).isEmpty
         let hasNutrition = !recipe.nonEmptyRecipeIngredientLines.isEmpty
 
@@ -938,10 +966,7 @@ struct RecipeDetailView: View {
             .buttonStyle(.plain)
 
             // Share
-            ShareLink(item: shareURL) {
-                actionPillLabel(icon: "square.and.arrow.up", text: "Share", tint: .pantryTextPrimary, background: Color.pantrySurface, stroke: Color.pantryBorderSubtle)
-            }
-            .buttonStyle(.plain)
+            RecipeShareButton(recipe: recipe)
 
             // Add to Meal Plan
             Button {
@@ -1144,15 +1169,23 @@ struct RecipeDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(recipe.ingredients.enumerated()), id: \.element.id) { index, ingredient in
                     let quantityResult = scaledQuantity(
-                        ingredient.quantity,
-                        recipeServings: recipe.servings,
+                        for: ingredient,
+                        recipe: recipe,
                         currentServings: servings.wrappedValue
                     )
                     RecipeDetailPantryStyleIngredientRow(
                         ingredient: ingredient,
                         quantityResult: quantityResult,
                         inPantry: viewModel.recipeIngredientInUserPantry(ingredient.name),
-                        staple: viewModel.recipeIngredientIsPantryStaple(ingredient.name)
+                        staple: viewModel.recipeIngredientIsPantryStaple(ingredient.name),
+                        isPrepped: preppedIngredientIDs.contains(ingredient.id),
+                        onTogglePrep: {
+                            if preppedIngredientIDs.contains(ingredient.id) {
+                                preppedIngredientIDs.remove(ingredient.id)
+                            } else {
+                                preppedIngredientIDs.insert(ingredient.id)
+                            }
+                        }
                     )
                     if index < recipe.ingredients.count - 1 {
                         Divider()
@@ -1447,6 +1480,8 @@ private struct RecipeDetailPantryStyleIngredientRow: View {
     let quantityResult: (text: String, scaleFactorToShow: Int?)
     let inPantry: Bool
     let staple: Bool
+    var isPrepped: Bool = false
+    var onTogglePrep: (() -> Void)? = nil
 
     private var needsGrocery: Bool {
         !inPantry && !staple
@@ -1454,6 +1489,15 @@ private struct RecipeDetailPantryStyleIngredientRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: PantryIngredientListMetrics.rowHPadding) {
+            Button {
+                onTogglePrep?()
+            } label: {
+                Image(systemName: isPrepped ? "checkmark.square.fill" : "square")
+                    .font(.title3)
+                    .foregroundStyle(isPrepped ? Color.pantryPrimary : Color.pantryTextSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isPrepped ? "Prepped" : "Mark prepped")
             RecipeIngredientPantryStatusDot(inPantry: inPantry, staple: staple)
                 .frame(width: PantryIngredientListMetrics.recipePantryStatusColumnWidth, alignment: .center)
 
@@ -1727,7 +1771,7 @@ struct FullScreenImageView: View {
                                     .onChanged { value in
                                         scale = lastScale * value
                                     }
-                                    .onEnded { value in
+                                    .onEnded { _ in
                                         lastScale = scale
                                         // Snap back if too small
                                         if scale < 1.0 {
